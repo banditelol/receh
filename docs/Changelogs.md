@@ -3,6 +3,37 @@
 Meaningful repository changes are recorded here newest-first. Entries are grouped by logical work
 area and may summarize one or more related commits.
 
+## 2026-08-22
+
+### Durable portable shader library
+
+- Replaced the single localStorage draft with a versioned SQLite WASM repository running in a
+  dedicated worker and persisted through OPFS, while retaining visible memory-only and recovery
+  failure states when durable browser storage is unavailable.
+- Added a portable schema for multiple projects, ordered passes, and recovery snapshots behind an
+  asynchronous repository contract designed for a later Expo SQLite React Native adapter.
+- Added a responsive shader library for creating, renaming, switching, and restoring local
+  projects, with visible saving, saved, memory-only, and recovery-needed states.
+- Added SHA-256-deduplicated snapshots after 30 quiet seconds and before protected reset, import,
+  migration, and restore actions, bounded to the latest 50 states per project.
+- Migrated existing localStorage drafts into SQLite with a recovery snapshot before clearing the
+  old keys.
+
+### Project and library portability
+
+- Added validated `.shaderpocket.json` and `.frag` imports that open as new local projects without
+  replacing current work.
+- Added consistent whole-library `shader-pocket.sqlite3` backup export and merge import, including
+  application/schema validation and collision-safe remapping across projects, passes, and recovery
+  snapshots.
+- Documented the shared SQLite boundary, browser adapter, backup semantics, and recommended React
+  Native continuation.
+- Verified OPFS persistence across reloads, multi-project switching, project import, protected
+  reset/restore, SQLite export, and collision-safe database re-import at 1440 × 900 and 390 × 844 in
+  Chrome with no application console errors.
+- Expanded the unit baseline to 26 passing tests and confirmed formatting, linting, strict type
+  checking, and the production build.
+
 ## 2026-08-21
 
 ### V1 product plan

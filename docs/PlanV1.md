@@ -1,7 +1,7 @@
 # Shader Pocket V1 product plan
 
 Status: active  
-Last updated: 2026-08-21
+Last updated: 2026-08-22
 
 ## V1 outcome
 
@@ -41,7 +41,12 @@ unless real-device validation uncovers a blocking need.
 - Framework-neutral, versioned `ShaderDocument` model in TypeScript.
 - Immutable active-pass updates, runtime schema repair, and migration from the original source-only
   local draft.
-- Debounced browser auto-save and restore using the current document schema.
+- A platform-neutral asynchronous repository contract, SQLite schema, and migration boundary ready
+  for a later Expo SQLite React Native adapter.
+- SQLite WASM storage in a dedicated worker, with an OPFS-backed multi-project library, debounced
+  saves, explicit durability states, and one-time migration from the previous localStorage draft.
+- SHA-256-deduplicated recovery snapshots after 30 quiet seconds and before protected actions, with
+  a 50-snapshot per-project retention limit and visible restore history.
 - A pass-shaped document structure ready for multi-pass expansion, while the renderer remains
   single-pass today.
 
@@ -49,6 +54,9 @@ unless real-device validation uncovers a blocking need.
 
 - Complete `.shaderpocket.json` project download.
 - Active `.frag` GLSL source download.
+- Validated `.shaderpocket.json` and `.frag` project import that creates safe new local projects.
+- Consistent whole-library SQLite export and merge import with application/schema validation and
+  collision-safe project, pass, and snapshot ID remapping.
 - 1080 × 1080 PNG rendering through the shared WebGL2 runtime.
 - Duration-controlled Instagram Story export from 1–60 seconds as a 1080 × 1920 H.264 MP4.
 - Constant 30 FPS encoding on secure WebCodecs-capable origins and a target-30 variable-frame-rate
@@ -59,10 +67,10 @@ unless real-device validation uncovers a blocking need.
 ### Current quality baseline
 
 - Formatting, linting, and strict TypeScript checks pass.
-- Fifteen unit tests cover diagnostics, document migration/update, storage, downloads, and Story
-  timeline calculations.
+- Twenty-six unit tests cover diagnostics, document migration/update, import validation, storage,
+  snapshot hashing, downloads, and Story timeline calculations.
 - Desktop and iPhone-profile browser flows have been exercised with no application console errors.
-- Generated PNG, project, GLSL, and H.264 MP4 files have been inspected outside the browser.
+- Generated SQLite, PNG, project, GLSL, and H.264 MP4 files have been inspected outside the browser.
 
 ## V1 scope and status
 
@@ -70,8 +78,8 @@ unless real-device validation uncovers a blocking need.
 | ---------------------------------- | ----------------- | --------------------------------------------------- |
 | Single-pass create/edit/run loop   | Prepared          | Harden on real phones                               |
 | Mobile and desktop workspaces      | Prepared          | Add remaining device coverage                       |
-| Browser auto-save                  | Prepared baseline | Move documents and snapshots to IndexedDB           |
-| Portable local backup              | Prepared          | Add project/source import and recovery UX           |
+| Browser auto-save                  | Prepared          | Harden storage pressure and failure recovery        |
+| Portable local backup              | Prepared          | Harden real-device import/share flows               |
 | Source diagnostics and completions | Prepared baseline | Add revision-safe async compile scheduling          |
 | PNG and Story MP4 export           | Prepared          | Test real-device encoding, memory, and cancellation |
 | Shareable shader URL               | Not started       | Required for V1                                     |
@@ -87,20 +95,31 @@ unless real-device validation uncovers a blocking need.
 
 ### 1. Durable local documents and recovery
 
-This is the immediate checkpoint because every later feature depends on trustworthy document state.
+Status: prepared in the browser; storage-pressure and real-device hardening remain in checkpoint 5.
 
-- Add an asynchronous, versioned storage adapter backed by IndexedDB for documents and named
-  snapshots; keep small UI preferences in localStorage.
+- Add an asynchronous, versioned repository backed on the web by SQLite WASM and OPFS. Keep the
+  schema, migrations, and repository contract platform-neutral so a later React Native client can
+  use the same database through Expo SQLite. Keep small device-specific UI preferences in
+  localStorage.
+- Store multiple shader projects, their ordered passes, and recovery snapshots in one portable
+  `shader-pocket.sqlite3` library.
 - Import `.shaderpocket.json` and `.frag` files with validation, migration, duplicate handling, and a
   recovery copy before destructive replacement.
+- Export and import a consistent whole-library SQLite backup for moving work between machines;
+  merge by default and reserve whole-library replacement for an explicit recovery action.
 - Add visible save states: saving, saved, storage unavailable, and recovery needed.
 - Snapshot after a quiet editing period and before reset, import, pass deletion, or schema migration.
-- Use content hashes to deduplicate unchanged snapshots and enforce a bounded retention policy.
+- Use content hashes to deduplicate unchanged snapshots. Retain the latest 50 unique snapshots per
+  project and create an idle snapshot after 30 seconds without edits.
 
-The browser data store should remain IndexedDB. If V1 later requires a server-side relational
-database, use SQLite with Drizzle rather than introducing a different server database layer.
+Use UUIDs for portable entity identities. Single-project imports create new local projects and
+receive new IDs on collisions. Whole-library imports merge by default and also remap colliding IDs.
+If V1 later requires a server-side relational database, use SQLite with Drizzle rather than
+introducing a different server database layer.
 
 ### 2. Shareable single-pass documents
+
+This is the next implementation checkpoint.
 
 - Define a compact, versioned URL payload containing title, active pass, and source.
 - Compress and URL-safe encode small projects with explicit maximum-size handling.
