@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 import { getActivePass, updateActivePassSource } from "./shaderDocument.ts";
 import {
+  clearMigratedDocumentStorage,
   DOCUMENT_STORAGE_KEY,
   LEGACY_SOURCE_STORAGE_KEY,
   loadShaderDocument,
+  loadStoredDocumentForMigration,
   saveShaderDocument,
 } from "./storage.ts";
 
@@ -30,5 +32,19 @@ describe("shader document storage", () => {
 
     expect(storage.getItem(LEGACY_SOURCE_STORAGE_KEY)).toBeNull();
     expect(storage.getItem(DOCUMENT_STORAGE_KEY)).toContain('"schemaVersion":1');
+  });
+
+  it("distinguishes an empty legacy store from a starter document", () => {
+    expect(loadStoredDocumentForMigration(memoryStorage())).toBeNull();
+  });
+
+  it("clears both migrated browser draft formats", () => {
+    const storage = memoryStorage({
+      [DOCUMENT_STORAGE_KEY]: "document",
+      [LEGACY_SOURCE_STORAGE_KEY]: "source",
+    });
+    clearMigratedDocumentStorage(storage);
+    expect(storage.getItem(DOCUMENT_STORAGE_KEY)).toBeNull();
+    expect(storage.getItem(LEGACY_SOURCE_STORAGE_KEY)).toBeNull();
   });
 });

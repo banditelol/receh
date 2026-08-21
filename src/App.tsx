@@ -1,28 +1,37 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DEFAULT_SHADER } from "./defaultShader.ts";
-import {
-  createShaderDocument,
-  getActivePass,
-  updateActivePassSource,
-  type ShaderDocument,
-} from "./document/shaderDocument.ts";
-import { loadShaderDocument, saveShaderDocument } from "./document/storage.ts";
+import { getActivePass, updateActivePassSource } from "./document/shaderDocument.ts";
+import { useShaderLibrary } from "./document/useShaderLibrary.ts";
 import { ShaderEditor } from "./editor/ShaderEditor.tsx";
 import { ExportPanel } from "./export/ExportPanel.tsx";
 import { useVisualViewport } from "./hooks/useVisualViewport.ts";
+import { LibraryPanel, SAVE_STATUS_LABELS } from "./library/LibraryPanel.tsx";
 import { ShaderCanvas } from "./renderer/ShaderCanvas.tsx";
 import type { ShaderDiagnostic } from "./renderer/diagnostics.ts";
 
 type MobilePane = "preview" | "code";
 type CompileStatus = "compiling" | "ready" | "error" | "unsupported";
 
-function readStoredDocument() {
-  return loadShaderDocument(window.localStorage);
-}
-
 export function App() {
   useVisualViewport();
-  const [document, setDocument] = useState<ShaderDocument>(readStoredDocument);
+  const {
+    document,
+    setDocument,
+    projects,
+    snapshots,
+    saveStatus,
+    storageMessage,
+    persistent,
+    createSnapshot,
+    refreshSnapshots,
+    openProject,
+    createProject,
+    importProject,
+    importLibrary,
+    exportLibrary,
+    restoreSnapshot,
+    renameDocument,
+  } = useShaderLibrary();
   const [compileRequest, setCompileRequest] = useState(0);
   const [status, setStatus] = useState<CompileStatus>("compiling");
   const [message, setMessage] = useState("Compiling");
@@ -30,6 +39,7 @@ export function App() {
   const [mobilePane, setMobilePane] = useState<MobilePane>("preview");
   const [paused, setPaused] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const [navigationTarget, setNavigationTarget] = useState<{
     line: number;
     request: number;
@@ -40,14 +50,9 @@ export function App() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setCompileRequest((request) => request + 1);
-      try {
-        saveShaderDocument(window.localStorage, document);
-      } catch {
-        // Storage can be disabled without affecting the editor.
-      }
     }, 450);
     return () => window.clearTimeout(timer);
-  }, [document]);
+  }, [source]);
 
   const handleCompileState = useCallback(
     (state: { status: CompileStatus; diagnostics: ShaderDiagnostic[]; message: string }) => {
@@ -69,9 +74,18 @@ export function App() {
     return status === "ready" ? "Live" : "Compiling";
   }, [diagnostics.length, status]);
 
-  const resetShader = () => {
+  const resetShader = async () => {
     if (source !== DEFAULT_SHADER && window.confirm("Reset the shader to the starter scene?")) {
-      setDocument(createShaderDocument());
+      try {
+        await createSnapshot("before-reset");
+        setDocument((current) => updateActivePassSource(current, DEFAULT_SHADER));
+      } catch (reason) {
+        window.alert(
+          reason instanceof Error
+            ? `Reset was cancelled: ${reason.message}`
+            : "Reset was cancelled because a recovery snapshot could not be created.",
+        );
+      }
     }
   };
 
@@ -87,18 +101,32 @@ export function App() {
     }));
   };
 
+  const openLibrary = () => {
+    setLibraryOpen(true);
+    void refreshSnapshots();
+  };
+
   return (
     <main className={`app app--${mobilePane}`}>
       <header className="topbar">
-        <div className="brand" aria-label="Shader Pocket">
+        <button
+          className="brand library-trigger"
+          type="button"
+          onClick={openLibrary}
+          aria-label={`Open shader library. ${SAVE_STATUS_LABELS[saveStatus]}.`}
+        >
           <span className="brand-mark" aria-hidden="true">
             ƒ
           </span>
-          <span>Shader Pocket</span>
-          <span className="prototype-tag">prototype</span>
-        </div>
+          <span className="brand-copy">
+            <strong>Shader Pocket</strong>
+            <small className={`save-state save-state--${saveStatus}`} aria-live="polite">
+              {SAVE_STATUS_LABELS[saveStatus]}
+            </small>
+          </span>
+        </button>
         <div className="top-actions">
-          <button className="quiet-button" type="button" onClick={resetShader}>
+          <button className="quiet-button" type="button" onClick={() => void resetShader()}>
             Reset
           </button>
           <button className="export-button" type="button" onClick={() => setExportOpen(true)}>
@@ -203,6 +231,25 @@ export function App() {
           source={source}
           canRender={status === "ready"}
           onClose={() => setExportOpen(false)}
+        />
+      )}
+
+      {libraryOpen && (
+        <LibraryPanel
+          document={document}
+          projects={projects}
+          snapshots={snapshots}
+          saveStatus={saveStatus}
+          storageMessage={storageMessage}
+          persistent={persistent}
+          onClose={() => setLibraryOpen(false)}
+          onRename={renameDocument}
+          onOpenProject={openProject}
+          onCreateProject={createProject}
+          onImportProject={importProject}
+          onImportLibrary={importLibrary}
+          onExportLibrary={exportLibrary}
+          onRestoreSnapshot={restoreSnapshot}
         />
       )}
     </main>
