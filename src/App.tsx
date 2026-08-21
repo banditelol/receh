@@ -8,6 +8,7 @@ import {
 } from "./document/shaderDocument.ts";
 import { loadShaderDocument, saveShaderDocument } from "./document/storage.ts";
 import { ShaderEditor } from "./editor/ShaderEditor.tsx";
+import { ExportPanel } from "./export/ExportPanel.tsx";
 import { useVisualViewport } from "./hooks/useVisualViewport.ts";
 import { ShaderCanvas } from "./renderer/ShaderCanvas.tsx";
 import type { ShaderDiagnostic } from "./renderer/diagnostics.ts";
@@ -28,6 +29,7 @@ export function App() {
   const [diagnostics, setDiagnostics] = useState<ShaderDiagnostic[]>([]);
   const [mobilePane, setMobilePane] = useState<MobilePane>("preview");
   const [paused, setPaused] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [navigationTarget, setNavigationTarget] = useState<{
     line: number;
     request: number;
@@ -98,6 +100,9 @@ export function App() {
         <div className="top-actions">
           <button className="quiet-button" type="button" onClick={resetShader}>
             Reset
+          </button>
+          <button className="export-button" type="button" onClick={() => setExportOpen(true)}>
+            Export
           </button>
           <button
             className="run-button"
@@ -191,6 +196,15 @@ export function App() {
           {status === "error" && <span className="nav-error" aria-label="Shader has errors" />}
         </button>
       </nav>
+
+      {exportOpen && (
+        <ExportPanel
+          document={document}
+          source={source}
+          canRender={status === "ready"}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
     </main>
   );
 }

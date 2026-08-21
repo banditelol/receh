@@ -10,6 +10,17 @@ area and may summarize one or more related commits.
 - Allowed the stable `ishineko.banteng-ratio.ts.net` Tailscale hostname in the Vite development
   server while retaining the strict `0.0.0.0:37005` service binding.
 
+### Portable local exports
+
+- Added explicit downloads for the complete versioned Shader Pocket project and the active GLSL
+  fragment source, complementing browser auto-save with portable local backups.
+- Added a 1080 × 1080 PNG renderer that uses the same WebGL2 compile and uniform path as the live
+  preview.
+- Added an accessible responsive export panel, including invalid-shader guards and visible export
+  failures.
+- Extracted the shared full-screen WebGL2 compile and frame runtime for reuse by live and offline
+  render targets.
+
 ### TypeScript shader editor foundation
 
 - Established the VitePlus, React, strict TypeScript, CodeMirror 6, and raw WebGL2 application
