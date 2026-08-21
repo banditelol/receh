@@ -5,6 +5,11 @@ area and may summarize one or more related commits.
 
 ## 2026-08-21
 
+### Tailscale development access
+
+- Allowed the stable `ishineko.banteng-ratio.ts.net` Tailscale hostname in the Vite development
+  server while retaining the strict `0.0.0.0:37005` service binding.
+
 ### TypeScript shader editor foundation
 
 - Established the VitePlus, React, strict TypeScript, CodeMirror 6, and raw WebGL2 application

@@ -7,6 +7,7 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 37005,
     strictPort: true,
+    allowedHosts: ["ishineko.banteng-ratio.ts.net"],
   },
   preview: {
     host: "0.0.0.0",
