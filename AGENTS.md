@@ -10,6 +10,24 @@ These instructions apply to the entire repository.
 - Before handing off implementation changes, run `vp check`, `vp test --run`, and `vp build` when relevant.
 - The registered development service is `fragcoord-re` on port `37005`. Keep `vite.config.ts` bound to `0.0.0.0` with `strictPort: true` so it remains reachable over Tailscale without silently moving to another port.
 
+## Git and changelog workflow
+
+- Break implementation work into cohesive, reviewable checkpoints and create a Git commit after
+  each checkpoint has been validated. Use concise conventional commit subjects that describe the
+  outcome, such as `feat:`, `fix:`, `refactor:`, `test:`, or `docs:`.
+- Do not mix unrelated changes in one commit. Preserve user-authored changes and never rewrite,
+  squash, amend, or remove existing commits unless the user explicitly requests it.
+- Record meaningful product, architecture, behavior, dependency, testing, and workflow changes in
+  `docs/Changelogs.md`. Keep entries newest-first and grouped by date and logical release or work
+  area.
+- Changelog and commit boundaries do not have to match one-to-one: one changelog group may summarize
+  several related commits, and a broad commit may warrant several focused changelog entries.
+- Update the changelog as part of the checkpoint it describes or in an immediately following
+  documentation commit. Avoid entries for generated files, formatting-only churn, or other changes
+  that do not help a future contributor understand the repository.
+- Before handoff, report the commits created and leave the worktree clean except for clearly
+  identified user-owned or intentionally uncommitted files.
+
 ## Frontend browser verification
 
 Every change that affects frontend behavior or presentation must be verified in a real browser after implementation. This includes UI, styling, responsive layout, interaction, rendering, routing, accessibility, and other browser-visible changes.

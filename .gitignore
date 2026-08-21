@@ -2,6 +2,7 @@ node_modules
 dist
 *.local
 *.log
+*.orig
 .DS_Store
 .artifacts/
 .playwright-cli/
