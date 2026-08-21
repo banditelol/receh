@@ -57,6 +57,9 @@ pass references and safely falls back for malformed or unsupported documents.
 - `Cmd+Enter` and `Ctrl+Enter` explicitly compile the current document.
 - Compiler diagnostics are actionable: selecting one focuses and centers its source line.
 - The renderer now supplies `u_time_delta` in addition to the existing built-in uniforms.
+- Portable local saves include the full versioned project JSON and the active `.frag` source.
+- Media export includes a 1080 × 1080 PNG and a duration-controlled 1080 × 1920 H.264 MP4 for
+  Instagram Story workflows.
 
 ## Validation snapshot
 
@@ -74,7 +77,8 @@ readback.
 
 ## Recommended next slice
 
-1. Add an IndexedDB-backed autosave/snapshot adapter and image export.
+1. Add an IndexedDB-backed autosave/snapshot adapter.
 2. Add compact shareable document URLs.
-3. Complete real-device iOS Safari and Android Chrome editing, IME, and thermal testing.
+3. Complete real-device iOS Safari and Android Chrome editing, IME, media encoding, and thermal
+   testing.
 4. Then add the parameter/tuning sheet generated from declared uniforms.

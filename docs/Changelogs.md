@@ -21,6 +21,19 @@ area and may summarize one or more related commits.
 - Extracted the shared full-screen WebGL2 compile and frame runtime for reuse by live and offline
   render targets.
 
+### Instagram Story video export
+
+- Added duration-controlled Story exports from 1–60 seconds as H.264 MP4 at the native 9:16
+  1080 × 1920 canvas size.
+- Added a deterministic WebCodecs and Mediabunny path that emits exactly 30 frames per second on
+  secure browser origins, with the media encoder loaded only when export capabilities are checked.
+- Added an H.264 MediaRecorder compatibility path for plain-HTTP Tailscale sessions where WebCodecs
+  is unavailable; the UI identifies this as target-30 variable-frame-rate recording.
+- Added recording progress, cancellation, codec capability guards, source compilation errors, and
+  unit coverage for duration and exact-frame timeline calculations.
+- Browser-validated the deterministic output as a 30-frame, 1.000-second H.264 MP4 and validated
+  the Tailscale compatibility output as a playable 1080 × 1920 H.264 MP4.
+
 ### TypeScript shader editor foundation
 
 - Established the VitePlus, React, strict TypeScript, CodeMirror 6, and raw WebGL2 application

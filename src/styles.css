@@ -529,6 +529,106 @@ button:focus-visible,
   line-height: 1.45;
 }
 
+.story-section {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 0.72fr);
+  padding-bottom: 20px;
+}
+
+.story-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+}
+
+.story-controls label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.duration-input {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgb(0 0 0 / 18%);
+}
+
+.duration-input input {
+  min-width: 0;
+  width: 54px;
+  height: 42px;
+  padding: 0 0 0 11px;
+  border: 0;
+  outline: 0;
+  color: var(--text);
+  background: transparent;
+  font:
+    650 12px/1 ui-monospace,
+    monospace;
+}
+
+.duration-input > span {
+  padding-right: 9px;
+  color: var(--muted);
+  font:
+    600 9px/1 ui-monospace,
+    monospace;
+  text-transform: lowercase;
+}
+
+.story-button,
+.cancel-button {
+  align-self: end;
+  padding: 0 13px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.story-button {
+  color: #160904;
+  background: linear-gradient(180deg, var(--orange-bright), var(--orange));
+}
+
+.story-button:disabled {
+  cursor: not-allowed;
+  filter: saturate(0.35);
+  opacity: 0.55;
+}
+
+.cancel-button {
+  grid-column: 1 / -1;
+  color: #ffc3bf;
+  border: 1px solid rgb(255 94 87 / 25%);
+  background: rgb(255 94 87 / 8%);
+}
+
+.story-progress {
+  position: absolute;
+  right: 0;
+  bottom: 8px;
+  left: 0;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgb(255 255 255 / 7%);
+}
+
+.story-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--orange), var(--purple));
+  transition: width 100ms linear;
+}
+
 .export-warning {
   color: #f4c87a;
   background: rgb(245 185 66 / 8%);
@@ -676,6 +776,10 @@ button:focus-visible,
   .export-section {
     grid-template-columns: 1fr;
     gap: 10px;
+  }
+
+  .story-section {
+    grid-template-columns: 1fr;
   }
 
   .export-actions,

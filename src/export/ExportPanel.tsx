@@ -1,7 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type ShaderDocument } from "../document/shaderDocument.ts";
 import { createProjectFile, createSourceFile, downloadBlob, safeFilename } from "./downloads.ts";
 import { renderShaderPng } from "./renderExport.ts";
+import {
+  clampStoryDuration,
+  getStoryVideoCapability,
+  renderStoryVideo,
+  STORY_VIDEO_MAX_DURATION,
+  STORY_VIDEO_MIN_DURATION,
+  type StoryVideoCapability,
+} from "./storyVideo.ts";
 
 type ExportPanelProps = {
   document: ShaderDocument;
@@ -11,12 +19,30 @@ type ExportPanelProps = {
 };
 
 export function ExportPanel({ document, source, canRender, onClose }: ExportPanelProps) {
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"image" | "video" | null>(null);
   const [error, setError] = useState("");
+  const [duration, setDuration] = useState(15);
+  const [progress, setProgress] = useState(0);
+  const [storyCapability, setStoryCapability] = useState<StoryVideoCapability | null>(null);
+  const recorderAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void getStoryVideoCapability()
+      .then((capability) => {
+        if (active) setStoryCapability(capability);
+      })
+      .catch(() => {
+        if (active) setStoryCapability({ supported: false, frameRateMode: null });
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy) onClose();
+      if (event.key === "Escape" && busy === null) onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -33,7 +59,7 @@ export function ExportPanel({ document, source, canRender, onClose }: ExportPane
   };
 
   const savePng = async () => {
-    setBusy(true);
+    setBusy("image");
     setError("");
     try {
       const blob = await renderShaderPng(source);
@@ -41,12 +67,46 @@ export function ExportPanel({ document, source, canRender, onClose }: ExportPane
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Image export failed.");
     } finally {
-      setBusy(false);
+      setBusy(null);
+    }
+  };
+
+  const saveStoryVideo = async () => {
+    const selectedDuration = clampStoryDuration(duration);
+    setDuration(selectedDuration);
+    setBusy("video");
+    setProgress(0);
+    setError("");
+    const controller = new AbortController();
+    recorderAbortRef.current = controller;
+
+    try {
+      const result = await renderStoryVideo(source, {
+        durationSeconds: selectedDuration,
+        signal: controller.signal,
+        onProgress: setProgress,
+      });
+      downloadBlob(
+        result.blob,
+        `${safeFilename(document.title)}-story-${selectedDuration}s.${result.extension}`,
+      );
+    } catch (reason) {
+      if (!(reason instanceof DOMException && reason.name === "AbortError")) {
+        setError(reason instanceof Error ? reason.message : "Story video export failed.");
+      }
+    } finally {
+      recorderAbortRef.current = null;
+      setBusy(null);
+      setProgress(0);
     }
   };
 
   return (
-    <div className="export-backdrop" role="presentation" onMouseDown={busy ? undefined : onClose}>
+    <div
+      className="export-backdrop"
+      role="presentation"
+      onMouseDown={busy === null ? onClose : undefined}
+    >
       <section
         className="export-panel"
         role="dialog"
@@ -59,7 +119,7 @@ export function ExportPanel({ document, source, canRender, onClose }: ExportPane
             <span className="eyebrow">Local export</span>
             <h2 id="export-title">Save your shader</h2>
           </div>
-          <button className="close-button" type="button" onClick={onClose} disabled={busy}>
+          <button className="close-button" type="button" onClick={onClose} disabled={busy !== null}>
             <span aria-hidden="true">×</span>
             <span className="sr-only">Close export panel</span>
           </button>
@@ -76,10 +136,20 @@ export function ExportPanel({ document, source, canRender, onClose }: ExportPane
             <span>Keep the complete project or just the active GLSL source.</span>
           </div>
           <div className="export-actions">
-            <button className="secondary-button" type="button" onClick={saveProject}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={saveProject}
+              disabled={busy !== null}
+            >
               Project JSON
             </button>
-            <button className="secondary-button" type="button" onClick={saveSource}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={saveSource}
+              disabled={busy !== null}
+            >
               GLSL source
             </button>
           </div>
@@ -94,13 +164,74 @@ export function ExportPanel({ document, source, canRender, onClose }: ExportPane
             className="secondary-button export-primary"
             type="button"
             onClick={savePng}
-            disabled={busy || !canRender}
+            disabled={busy !== null || !canRender}
           >
-            {busy ? "Rendering…" : "Export PNG"}
+            {busy === "image" ? "Rendering…" : "Export PNG"}
           </button>
         </div>
 
+        <div className="export-section story-section">
+          <div className="export-section-copy">
+            <strong>Instagram Story video</strong>
+            <span>
+              Encode an H.264 MP4 at 1080 × 1920 with a{" "}
+              {storyCapability?.frameRateMode === "constant" ? "constant" : "target"} 30 FPS. The
+              shader timeline starts at zero.
+            </span>
+          </div>
+          <div className="story-controls">
+            <label>
+              <span>Duration</span>
+              <span className="duration-input">
+                <input
+                  type="number"
+                  min={STORY_VIDEO_MIN_DURATION}
+                  max={STORY_VIDEO_MAX_DURATION}
+                  step="1"
+                  value={duration}
+                  onChange={(event) => setDuration(Number(event.target.value))}
+                  disabled={busy !== null}
+                  aria-label="Story duration in seconds"
+                />
+                <span>sec</span>
+              </span>
+            </label>
+            <button
+              className="story-button"
+              type="button"
+              onClick={saveStoryVideo}
+              disabled={busy !== null || !canRender || storyCapability?.supported !== true}
+            >
+              {busy === "video" ? `Recording ${Math.round(progress * 100)}%` : "Record Story"}
+            </button>
+            {busy === "video" && (
+              <button
+                className="cancel-button"
+                type="button"
+                onClick={() => recorderAbortRef.current?.abort()}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+          {busy === "video" && (
+            <div
+              className="story-progress"
+              role="progressbar"
+              aria-label="Story recording progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progress * 100)}
+            >
+              <span style={{ width: `${progress * 100}%` }} />
+            </div>
+          )}
+        </div>
+
         {!canRender && <p className="export-warning">Fix shader errors before exporting media.</p>}
+        {storyCapability?.supported === false && (
+          <p className="export-warning">This browser cannot encode H.264 Story video.</p>
+        )}
         {error && (
           <p className="export-error" role="alert">
             {error}
