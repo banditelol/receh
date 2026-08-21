@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
+  cloneShaderDocumentWithNewIds,
   createShaderDocument,
   getActivePass,
   migrateShaderDocument,
+  parseImportedShaderDocument,
   parseShaderDocument,
+  updateDocumentTitle,
   updateActivePassSource,
 } from "./shaderDocument.ts";
 
@@ -35,6 +38,21 @@ describe("shader document migrations", () => {
   it("falls back to a valid document for corrupt JSON", () => {
     expect(getActivePass(parseShaderDocument("not json")).source).toContain("#version 300 es");
   });
+
+  it("rejects corrupt and unsupported imported projects", () => {
+    expect(() => parseImportedShaderDocument("not json")).toThrow("valid JSON");
+    expect(() =>
+      parseImportedShaderDocument(JSON.stringify({ schemaVersion: 99, passes: [] })),
+    ).toThrow("version 99");
+  });
+
+  it("accepts and migrates source-only imported projects", () => {
+    const document = parseImportedShaderDocument(
+      JSON.stringify({ schemaVersion: 0, title: "Old project", source: "legacy" }),
+    );
+    expect(document.title).toBe("Old project");
+    expect(getActivePass(document).source).toBe("legacy");
+  });
 });
 
 describe("shader document updates", () => {
@@ -44,5 +62,18 @@ describe("shader document updates", () => {
 
     expect(getActivePass(before).source).toBe("before");
     expect(getActivePass(after).source).toBe("after");
+  });
+
+  it("normalizes an empty title", () => {
+    expect(updateDocumentTitle(createShaderDocument(), "   ").title).toBe("Untitled shader");
+  });
+
+  it("reidentifies a document and all of its passes", () => {
+    const ids = ["new-pass", "new-project"];
+    const document = cloneShaderDocumentWithNewIds(createShaderDocument(), () => ids.shift()!);
+
+    expect(document.id).toBe("new-project");
+    expect(document.activePassId).toBe("new-pass");
+    expect(document.passes[0].id).toBe("new-pass");
   });
 });

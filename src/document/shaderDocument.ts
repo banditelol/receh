@@ -31,6 +31,8 @@ type ShaderDocumentV0 = {
 const DEFAULT_DOCUMENT_ID = "local-draft";
 const DEFAULT_PASS_ID = "main";
 
+export type IdFactory = () => string;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -66,6 +68,48 @@ export function createShaderDocument(source = DEFAULT_SHADER): ShaderDocument {
         source,
       },
     ],
+  };
+}
+
+export function createPortableShaderDocument(
+  source = DEFAULT_SHADER,
+  title = "Untitled shader",
+  createId: IdFactory = () => crypto.randomUUID(),
+): ShaderDocument {
+  const documentId = createId();
+  const passId = createId();
+  return {
+    schemaVersion: SHADER_DOCUMENT_VERSION,
+    id: documentId,
+    title,
+    activePassId: passId,
+    passes: [
+      {
+        id: passId,
+        name: "main.frag",
+        kind: "fragment",
+        language: "glsl",
+        source,
+      },
+    ],
+  };
+}
+
+export function cloneShaderDocumentWithNewIds(
+  document: ShaderDocument,
+  createId: IdFactory = () => crypto.randomUUID(),
+): ShaderDocument {
+  const passIds = new Map(document.passes.map((pass) => [pass.id, createId()]));
+  const passes = document.passes.map((pass) => ({
+    ...pass,
+    id: passIds.get(pass.id) ?? createId(),
+  })) as [ShaderPass, ...ShaderPass[]];
+
+  return {
+    ...document,
+    id: createId(),
+    activePassId: passIds.get(document.activePassId) ?? passes[0].id,
+    passes,
   };
 }
 
@@ -110,6 +154,36 @@ export function parseShaderDocument(serialized: string): ShaderDocument {
   }
 }
 
+export function parseImportedShaderDocument(serialized: string): ShaderDocument {
+  let value: unknown;
+  try {
+    value = JSON.parse(serialized);
+  } catch {
+    throw new Error("This project file does not contain valid JSON.");
+  }
+
+  if (!isRecord(value)) throw new Error("This project file is not a Shader Pocket document.");
+  if (value.schemaVersion !== undefined && value.schemaVersion !== 0 && value.schemaVersion !== 1) {
+    const version =
+      typeof value.schemaVersion === "string" || typeof value.schemaVersion === "number"
+        ? value.schemaVersion
+        : "unknown";
+    throw new Error(`Shader document version ${version} is not supported.`);
+  }
+  if (value.schemaVersion === 1) {
+    if (!Array.isArray(value.passes) || value.passes.length === 0) {
+      throw new Error("This project does not contain a fragment pass.");
+    }
+    if (value.passes.some((pass) => parsePass(pass) === null)) {
+      throw new Error("One or more fragment passes are invalid.");
+    }
+  } else if (typeof value.source !== "string") {
+    throw new Error("This legacy project does not contain shader source.");
+  }
+
+  return migrateShaderDocument(value);
+}
+
 export function getActivePass(document: ShaderDocument): ShaderPass {
   return document.passes.find((pass) => pass.id === document.activePassId) ?? document.passes[0];
 }
@@ -123,4 +197,9 @@ export function updateActivePassSource(document: ShaderDocument, source: string)
       pass.id === document.activePassId ? { ...pass, source } : pass,
     ) as [ShaderPass, ...ShaderPass[]],
   };
+}
+
+export function updateDocumentTitle(document: ShaderDocument, title: string): ShaderDocument {
+  const nextTitle = title.trim() || "Untitled shader";
+  return document.title === nextTitle ? document : { ...document, title: nextTitle };
 }
