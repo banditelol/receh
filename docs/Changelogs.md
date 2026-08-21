@@ -5,6 +5,15 @@ area and may summarize one or more related commits.
 
 ## 2026-08-21
 
+### V1 product plan
+
+- Added a single V1 product plan that inventories the prepared editor, renderer, document,
+  responsive, local-save, and media-export capabilities.
+- Defined the remaining V1 sequence: durable IndexedDB documents and recovery, shareable URLs,
+  uniform tuning, ordered fragment passes, PWA delivery, and real-device hardening.
+- Recorded V1 release criteria and explicit post-V1 boundaries for accounts, cloud publishing,
+  advanced GPU/language support, media inputs, and native packaging.
+
 ### Tailscale development access
 
 - Allowed the stable `ishineko.banteng-ratio.ts.net` Tailscale hostname in the Vite development

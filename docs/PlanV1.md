@@ -1,0 +1,162 @@
+# Shader Pocket V1 product plan
+
+Status: active  
+Last updated: 2026-08-21
+
+## V1 outcome
+
+V1 is a local-first, mobile-friendly shader editor that lets someone create, edit, tune, save,
+restore, share, and export GLSL fragment shaders without an account. It should feel intentional on
+phones while retaining a productive split workspace on larger screens.
+
+V1 remains a browser-first React and WebGL2 product written in strict TypeScript. Accounts,
+publishing, community features, WebGPU, native app shells, and advanced media inputs are post-V1
+unless real-device validation uncovers a blocking need.
+
+## What is prepared
+
+### Application foundation
+
+- VitePlus, React, and strict TypeScript project with formatting, linting, type checking, Vitest,
+  production builds, and Playwright browser verification.
+- Development service fixed to `0.0.0.0:37005`, including the allowed
+  `ishineko.banteng-ratio.ts.net` Tailscale hostname.
+- Responsive desktop split workspace and dedicated phone Preview/Code navigation.
+- Safe-area-aware controls, 44-pixel phone targets, visual viewport keyboard sizing, reduced-motion
+  handling, and accessible status/error regions.
+
+### Editing and rendering
+
+- CodeMirror 6 GLSL ES 3.00 editing with syntax highlighting, line wrapping, common built-in
+  completions, and `Cmd+Enter`/`Ctrl+Enter` compilation.
+- Raw WebGL2 full-screen triangle renderer with `u_resolution`, `u_time`, `u_time_delta`, `u_frame`,
+  `u_mouse`, `u_drag`, and `u_scroll`.
+- Debounced automatic compilation plus explicit Run.
+- Parsed compiler diagnostics that navigate back to the affected source line.
+- Last-good-program rendering when a new shader fails, context-loss messaging, pause/resume, reset,
+  pointer interaction, and a device-pixel-ratio cap.
+
+### Document and local state
+
+- Framework-neutral, versioned `ShaderDocument` model in TypeScript.
+- Immutable active-pass updates, runtime schema repair, and migration from the original source-only
+  local draft.
+- Debounced browser auto-save and restore using the current document schema.
+- A pass-shaped document structure ready for multi-pass expansion, while the renderer remains
+  single-pass today.
+
+### Portable files and media
+
+- Complete `.shaderpocket.json` project download.
+- Active `.frag` GLSL source download.
+- 1080 × 1080 PNG rendering through the shared WebGL2 runtime.
+- Duration-controlled Instagram Story export from 1–60 seconds as a 1080 × 1920 H.264 MP4.
+- Constant 30 FPS encoding on secure WebCodecs-capable origins and a target-30 variable-frame-rate
+  compatibility path for plain-HTTP Tailscale sessions.
+- Export capability checks, progress, cancellation, invalid-shader guards, and lazy media-encoder
+  loading.
+
+### Current quality baseline
+
+- Formatting, linting, and strict TypeScript checks pass.
+- Fifteen unit tests cover diagnostics, document migration/update, storage, downloads, and Story
+  timeline calculations.
+- Desktop and iPhone-profile browser flows have been exercised with no application console errors.
+- Generated PNG, project, GLSL, and H.264 MP4 files have been inspected outside the browser.
+
+## V1 scope and status
+
+| Product capability                 | Status            | V1 requirement                                      |
+| ---------------------------------- | ----------------- | --------------------------------------------------- |
+| Single-pass create/edit/run loop   | Prepared          | Harden on real phones                               |
+| Mobile and desktop workspaces      | Prepared          | Add remaining device coverage                       |
+| Browser auto-save                  | Prepared baseline | Move documents and snapshots to IndexedDB           |
+| Portable local backup              | Prepared          | Add project/source import and recovery UX           |
+| Source diagnostics and completions | Prepared baseline | Add revision-safe async compile scheduling          |
+| PNG and Story MP4 export           | Prepared          | Test real-device encoding, memory, and cancellation |
+| Shareable shader URL               | Not started       | Required for V1                                     |
+| Named snapshots/history            | Not started       | Required for V1                                     |
+| Parsed uniform tuner               | Not started       | Required for V1                                     |
+| Ordered fragment passes            | Not started       | Required for V1                                     |
+| Installable/offline PWA            | Not started       | Required after durable local storage                |
+| Accounts and cloud publishing      | Deferred          | Post-V1                                             |
+| WebGPU and alternate languages     | Deferred          | Post-V1                                             |
+| Community, tutorials, marketplace  | Deferred          | Post-V1                                             |
+
+## What to do next
+
+### 1. Durable local documents and recovery
+
+This is the immediate checkpoint because every later feature depends on trustworthy document state.
+
+- Add an asynchronous, versioned storage adapter backed by IndexedDB for documents and named
+  snapshots; keep small UI preferences in localStorage.
+- Import `.shaderpocket.json` and `.frag` files with validation, migration, duplicate handling, and a
+  recovery copy before destructive replacement.
+- Add visible save states: saving, saved, storage unavailable, and recovery needed.
+- Snapshot after a quiet editing period and before reset, import, pass deletion, or schema migration.
+- Use content hashes to deduplicate unchanged snapshots and enforce a bounded retention policy.
+
+The browser data store should remain IndexedDB. If V1 later requires a server-side relational
+database, use SQLite with Drizzle rather than introducing a different server database layer.
+
+### 2. Shareable single-pass documents
+
+- Define a compact, versioned URL payload containing title, active pass, and source.
+- Compress and URL-safe encode small projects with explicit maximum-size handling.
+- Restore shared documents as unsaved local copies rather than silently replacing the current
+  draft.
+- Add copy/share-sheet actions and test deep links on iOS Safari and Android Chrome.
+- Keep large projects on the local export path until cloud publishing exists.
+
+### 3. Uniform tuner
+
+- Parse declared float, int, bool, vector, and color uniforms into a typed model.
+- Add a keyboard-safe Tune sheet on phones and a compact inspector on larger screens.
+- Update runtime uniform values without moving the code cursor or recompiling the shader.
+- Provide reset and explicit commit-to-source behavior so tuning never changes source implicitly.
+
+### 4. Ordered fragment passes
+
+- Extend the renderer from one active pass to common source plus ordered fragment passes.
+- Add previous-pass textures, configurable resolution, and deterministic framebuffer disposal.
+- Implement add, rename, delete, reorder, and active-pass navigation with guarded destructive
+  actions and automatic snapshots.
+- Verify a three-pass shader can be edited and reordered repeatedly without resource or frame leaks.
+
+### 5. PWA and real-device hardening
+
+- Add the web manifest, service worker, offline shell, update prompt, and storage-pressure handling.
+- Test native selection, paste, undo/redo, IME composition, external keyboards, VoiceOver, TalkBack,
+  orientation changes, and keyboard-open layouts.
+- Run 30-minute thermal/memory sessions on at least one current iPhone and Android device.
+- Test PNG and Story exports at 1, 15, and 60 seconds, including cancellation and low-memory failure.
+- Confirm page zoom, focus order, touch targets, reduced motion, and nonvisual compile status.
+
+## V1 release criteria
+
+V1 is ready when all of the following are true:
+
+- A new user can create, edit, compile, tune, save, close, restore, share, and export a shader on the
+  supported phone matrix without an account.
+- A broken edit never destroys the last working preview or the last recoverable document state.
+- Three ordered fragment passes can run, reorder, snapshot, restore, and export without leaked GPU
+  resources.
+- Uniform tuning does not alter source or trigger compilation until explicitly committed.
+- Local project and source files round-trip through import/export without schema or source loss.
+- Share URLs open as safe local copies and fail clearly when a payload is unsupported or too large.
+- The installed PWA opens the last document offline and reports when an update is ready.
+- Required actions remain reachable with one hand on phones and with a hardware keyboard on all
+  layouts.
+- The required checks, unit tests, production build, browser flows, accessibility smoke tests, and
+  real-device thermal/media tests pass with results recorded in the changelog or release notes.
+
+## Explicitly after V1
+
+- Accounts, cloud synchronization, collaboration, comments, profiles, and public publishing.
+- Supabase or another hosted backend; if a lightweight relational service is needed first, prefer
+  SQLite with Drizzle.
+- WebGPU, WGSL, HLSL, Slang, compute passes, and automatic language conversion.
+- Webcam, audio, screen, keyboard, and uploaded texture inputs.
+- Advanced profiling, heatmaps, expression inspection, tutorials, marketplace, and monetization.
+- Expo/React Native packaging until the browser V1 is proven on real devices.

@@ -2,6 +2,8 @@
 
 Implementation status: [Slice 0 implementation handoff](./slice-0-implementation.md)
 
+Product roadmap: [Shader Pocket V1 plan](../PlanV1.md)
+
 This folder contains the clean-room investigation and implementation direction for a more mobile-friendly FragCoord-style shader editor.
 
 - [Reverse-engineering research](./fragcoord-editor-research.md): deployed stack, editor features, responsive behavior, accessibility risks, evidence, and limits.
