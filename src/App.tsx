@@ -7,6 +7,8 @@ import {
   saveEditorPreferences,
   type EditorPreferences,
 } from "./editor/editorPreferences.ts";
+import { GlslDocsPanel } from "./editor/GlslDocsPanel.tsx";
+import type { GlslReferenceEntry } from "./editor/glslCatalog.ts";
 import { ShaderEditor } from "./editor/ShaderEditor.tsx";
 import { ExportPanel } from "./export/ExportPanel.tsx";
 import { useVisualViewport } from "./hooks/useVisualViewport.ts";
@@ -47,6 +49,10 @@ export function App() {
   const [exportOpen, setExportOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [docsOpen, setDocsOpen] = useState(false);
+  const [docsInitialName, setDocsInitialName] = useState<string>();
+  const [cursorReference, setCursorReference] = useState<GlslReferenceEntry | null>(null);
+  const [searchRequest, setSearchRequest] = useState(0);
   const [editorPreferences, setEditorPreferences] = useState(() =>
     loadEditorPreferences(window.localStorage),
   );
@@ -131,6 +137,11 @@ export function App() {
     }));
   };
 
+  const openDocs = (name?: string) => {
+    setDocsInitialName(name);
+    setDocsOpen(true);
+  };
+
   return (
     <main
       className={`app app--${mobilePane} app--code-presentation-${editorPreferences.phoneCodePresentation}`}
@@ -205,6 +216,22 @@ export function App() {
             <div className="panel-heading-actions">
               <span className="language-pill">GLSL 300 ES</span>
               <button
+                className="panel-action"
+                type="button"
+                onClick={() => setSearchRequest((request) => request + 1)}
+                aria-label="Find in shader source"
+              >
+                Find
+              </button>
+              <button
+                className="panel-action"
+                type="button"
+                onClick={() => openDocs(cursorReference?.name)}
+                aria-label="Search offline GLSL function documentation"
+              >
+                Docs
+              </button>
+              <button
                 className="panel-action presentation-toggle"
                 type="button"
                 onClick={toggleCodePresentation}
@@ -225,7 +252,21 @@ export function App() {
             onRun={() => setCompileRequest((request) => request + 1)}
             navigationTarget={navigationTarget}
             preferences={editorPreferences}
+            searchRequest={searchRequest}
+            onReferenceChange={setCursorReference}
           />
+          {cursorReference && editorPreferences.inlineDocumentation && status !== "error" && (
+            <button
+              className="editor-reference-chip"
+              type="button"
+              onClick={() => openDocs(cursorReference.name)}
+              aria-label={`Inspect ${cursorReference.name} in the GLSL reference`}
+            >
+              <strong>{cursorReference.name}</strong>
+              <code>{cursorReference.signatures[0]}</code>
+              <span>Inspect</span>
+            </button>
+          )}
           {status === "error" && (
             <div className="error-drawer" role="status" aria-live="polite">
               {diagnostics.length > 0 ? (
@@ -304,6 +345,10 @@ export function App() {
           onChange={updateEditorPreferences}
           onClose={() => setSettingsOpen(false)}
         />
+      )}
+
+      {docsOpen && (
+        <GlslDocsPanel initialName={docsInitialName} onClose={() => setDocsOpen(false)} />
       )}
     </main>
   );

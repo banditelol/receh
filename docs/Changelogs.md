@@ -16,6 +16,17 @@ area and may summarize one or more related commits.
 - Added a phone Code header control that cycles between an opaque Focus workspace and a readable
   translucent editor over the live shader preview.
 
+### Offline GLSL editing assistance
+
+- Added a bundled GLSL ES 3.00 reference covering 62 commonly used functions with fuzzy name and
+  concept search, overload signatures, concise descriptions, examples, and links back to the
+  authoritative Khronos pages.
+- Expanded completion beyond a static built-in list with ranked GLSL functions and snippets,
+  Shader Pocket uniforms, user-declared functions and variables, qualifier-aware type suggestions,
+  and vector swizzles while suppressing suggestions inside comments.
+- Exposed a compact source Find control, desktop function hovers, and a touch-friendly cursor help
+  chip that opens the selected function directly in the offline reference.
+
 ### Durable portable shader library
 
 - Replaced the single localStorage draft with a versioned SQLite WASM repository running in a

@@ -27,8 +27,12 @@ unless real-device validation uncovers a blocking need.
 
 ### Editing and rendering
 
-- CodeMirror 6 GLSL ES 3.00 editing with syntax highlighting, line wrapping, common built-in
-  completions, and `Cmd+Enter`/`Ctrl+Enter` compilation.
+- CodeMirror 6 GLSL ES 3.00 editing with configurable locally bundled monospace fonts, four complete
+  syntax themes, adjustable density and wrapping, and `Cmd+Enter`/`Ctrl+Enter` compilation.
+- Source-aware local completions for built-ins, snippets, Shader Pocket uniforms, declared symbols,
+  qualifier contexts, and swizzles, plus source Find and an offline fuzzy reference for 62 common
+  GLSL ES functions with signatures, descriptions, examples, desktop hover, and phone cursor help.
+- Dedicated phone Focus and live-preview Overlay code presentations with a device-local default.
 - Raw WebGL2 full-screen triangle renderer with `u_resolution`, `u_time`, `u_time_delta`, `u_frame`,
   `u_mouse`, `u_drag`, and `u_scroll`.
 - Debounced automatic compilation plus explicit Run.
@@ -67,8 +71,9 @@ unless real-device validation uncovers a blocking need.
 ### Current quality baseline
 
 - Formatting, linting, and strict TypeScript checks pass.
-- Twenty-six unit tests cover diagnostics, document migration/update, import validation, storage,
-  snapshot hashing, downloads, and Story timeline calculations.
+- Thirty-four unit tests cover diagnostics, document migration/update, import validation, storage,
+  snapshot hashing, downloads, Story timeline calculations, editor preference repair, GLSL catalog
+  search, and source-symbol/reference context.
 - Desktop and iPhone-profile browser flows have been exercised with no application console errors.
 - Generated SQLite, PNG, project, GLSL, and H.264 MP4 files have been inspected outside the browser.
 

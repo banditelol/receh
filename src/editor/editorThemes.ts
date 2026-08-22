@@ -205,6 +205,8 @@ export function createEditorAppearance(preferences: EditorPreferences) {
         borderRadius: "6px",
       },
       ".cm-panel.cm-search button": {
+        minWidth: "36px",
+        minHeight: "36px",
         color: palette.foreground,
         backgroundColor: palette.activeLine,
         border: `1px solid ${palette.border}`,
