@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import type { ProjectSummary, SnapshotSummary } from "../document/repository.ts";
 import type { ShaderDocument } from "../document/shaderDocument.ts";
 import type { LibrarySaveStatus } from "../document/useShaderLibrary.ts";
+import { formatStorageSize, type StorageHealth } from "../pwa/useStorageHealth.ts";
 
 type LibraryPanelProps = {
   document: ShaderDocument;
@@ -10,6 +11,7 @@ type LibraryPanelProps = {
   saveStatus: LibrarySaveStatus;
   storageMessage: string;
   persistent: boolean;
+  storageHealth: StorageHealth;
   onClose: () => void;
   onRename: (title: string) => void;
   onOpenProject: (projectId: string) => Promise<void>;
@@ -52,6 +54,7 @@ export function LibraryPanel({
   saveStatus,
   storageMessage,
   persistent,
+  storageHealth,
   onClose,
   onRename,
   onOpenProject,
@@ -117,11 +120,23 @@ export function LibraryPanel({
           </button>
         </div>
 
-        <div className={`library-storage library-storage--${saveStatus}`} role="status">
+        <div
+          className={`library-storage library-storage--${saveStatus} ${
+            storageHealth.pressure ? "library-storage--pressure" : ""
+          }`}
+          role="status"
+        >
           <span className="library-storage-dot" aria-hidden="true" />
           <span>
             <strong>{SAVE_STATUS_LABELS[saveStatus]}</strong>
             <small>{storageMessage}</small>
+            {storageHealth.supported && (
+              <small className="library-storage-usage">
+                {storageHealth.pressure
+                  ? `Browser storage is ${Math.round(storageHealth.ratio * 100)}% full. Make a library backup soon.`
+                  : `${formatStorageSize(storageHealth.usage)} used of ${formatStorageSize(storageHealth.quota)} browser storage.`}
+              </small>
+            )}
           </span>
         </div>
 

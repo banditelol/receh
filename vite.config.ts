@@ -1,8 +1,9 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite-plus";
+import { pwaServiceWorkerPlugin } from "./build/pwaServiceWorker.ts";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), pwaServiceWorkerPlugin()],
   optimizeDeps: {
     exclude: ["@sqlite.org/sqlite-wasm"],
   },

@@ -5,6 +5,20 @@ area and may summarize one or more related commits.
 
 ## 2026-08-22
 
+### Installable offline application
+
+- Added a production web manifest, adaptive/maskable and Apple application icons, browser install
+  actions, and iOS Add to Home Screen guidance in a phone-safe prompt.
+- Added a build-generated, versioned service worker that precaches the complete editor shell,
+  locally bundled docs and fonts, SQLite worker/WASM runtime, and platform assets for offline use.
+- Added an explicit update-ready flow that leaves the active version running until the user chooses
+  Reload, then removes superseded shell caches without touching OPFS projects.
+- Added online/offline status messaging and browser storage estimates in the SQLite library, with a
+  prominent backup warning at high quota use or low remaining space.
+- Verified production service-worker control, manifest discovery, cache installation, full editor
+  reload with the web server stopped, protected application update/reload, and retained SQLite
+  access at desktop and iPhone-profile viewports.
+
 ### Parsed live uniform tuner
 
 - Added typed controls for custom float, int, bool, vector, and color uniforms, with source comment

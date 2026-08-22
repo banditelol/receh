@@ -18,6 +18,9 @@ import { ShaderEditor } from "./editor/ShaderEditor.tsx";
 import { ExportPanel } from "./export/ExportPanel.tsx";
 import { useVisualViewport } from "./hooks/useVisualViewport.ts";
 import { LibraryPanel, SAVE_STATUS_LABELS } from "./library/LibraryPanel.tsx";
+import { PwaPrompt } from "./pwa/PwaPrompt.tsx";
+import { usePwa } from "./pwa/usePwa.ts";
+import { useStorageHealth } from "./pwa/useStorageHealth.ts";
 import { ShaderCanvas } from "./renderer/ShaderCanvas.tsx";
 import type { ShaderDiagnostic } from "./renderer/diagnostics.ts";
 import { EditorSettingsPanel } from "./settings/EditorSettingsPanel.tsx";
@@ -34,6 +37,8 @@ type CompileStatus = "compiling" | "ready" | "error" | "unsupported";
 
 export function App() {
   useVisualViewport();
+  const pwa = usePwa();
+  const storageHealth = useStorageHealth();
   const {
     document,
     setDocument,
@@ -371,6 +376,7 @@ export function App() {
           saveStatus={saveStatus}
           storageMessage={storageMessage}
           persistent={persistent}
+          storageHealth={storageHealth}
           onClose={() => setLibraryOpen(false)}
           onRename={renameDocument}
           onOpenProject={openProject}
@@ -404,6 +410,8 @@ export function App() {
           onClose={() => setTunerOpen(false)}
         />
       )}
+
+      <PwaPrompt pwa={pwa} />
     </main>
   );
 }

@@ -19,6 +19,9 @@ unless real-device validation uncovers a blocking need.
 
 - VitePlus, React, and strict TypeScript project with formatting, linting, type checking, Vitest,
   production builds, and Playwright browser verification.
+- Installable PWA manifest and platform icons, with Android/browser install actions, iOS home-screen
+  guidance, an offline shell containing the complete editor and SQLite runtime, and a protected
+  update-ready reload flow.
 - Development service fixed to `0.0.0.0:37005`, including the allowed
   `ishineko.banteng-ratio.ts.net` Tailscale hostname.
 - Responsive desktop split workspace and dedicated phone Preview/Code navigation.
@@ -55,6 +58,8 @@ unless real-device validation uncovers a blocking need.
   for a later Expo SQLite React Native adapter.
 - SQLite WASM storage in a dedicated worker, with an OPFS-backed multi-project library, debounced
   saves, explicit durability states, and one-time migration from the previous localStorage draft.
+- Browser quota monitoring in the library reports current origin usage and turns into a visible
+  backup warning near storage pressure.
 - SHA-256-deduplicated recovery snapshots after 30 quiet seconds and before protected actions, with
   a 50-snapshot per-project retention limit and visible restore history.
 - A pass-shaped document structure ready for multi-pass expansion, while the renderer remains
@@ -77,9 +82,10 @@ unless real-device validation uncovers a blocking need.
 ### Current quality baseline
 
 - Formatting, linting, and strict TypeScript checks pass.
-- Thirty-four unit tests cover diagnostics, document migration/update, import validation, storage,
+- Forty-six unit tests cover diagnostics, document migration/update, import validation, storage,
   snapshot hashing, downloads, Story timeline calculations, editor preference repair, GLSL catalog
-  search, and source-symbol/reference context.
+  search, source-symbol/reference context, uniform parsing/baking, synchronized color conversion,
+  storage-pressure classification, and service-worker generation.
 - Desktop and iPhone-profile browser flows have been exercised with no application console errors.
 - Generated SQLite, PNG, project, GLSL, and H.264 MP4 files have been inspected outside the browser.
 
@@ -97,7 +103,7 @@ unless real-device validation uncovers a blocking need.
 | Named snapshots/history            | Not started       | Required for V1                                     |
 | Parsed uniform tuner               | Prepared          | Harden on real phones                               |
 | Ordered fragment passes            | Not started       | Required for V1                                     |
-| Installable/offline PWA            | Not started       | Required after durable local storage                |
+| Installable/offline PWA            | Prepared          | Harden installation on real devices                 |
 | Accounts and cloud publishing      | Deferred          | Post-V1                                             |
 | WebGPU and alternate languages     | Deferred          | Post-V1                                             |
 | Community, tutorials, marketplace  | Deferred          | Post-V1                                             |
@@ -164,7 +170,13 @@ Status: prepared in the browser; real-device input and accessibility coverage re
 
 ### 5. PWA and real-device hardening
 
-- Add the web manifest, service worker, offline shell, update prompt, and storage-pressure handling.
+Status: the browser PWA and storage-pressure baseline are prepared. The remaining work requires
+physical iPhone and Android validation.
+
+- Add the web manifest, platform/maskable icons, install guidance, build-generated versioned service
+  worker, complete offline shell, explicit update prompt, and storage-pressure handling. Prepared.
+- Keep production navigation responses configured with the existing cross-origin opener/embedder
+  headers so SQLite OPFS remains available online and from the cached shell.
 - Test native selection, paste, undo/redo, IME composition, external keyboards, VoiceOver, TalkBack,
   orientation changes, and keyboard-open layouts.
 - Run 30-minute thermal/memory sessions on at least one current iPhone and Android device.
