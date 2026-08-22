@@ -1,11 +1,38 @@
 import { cpp } from "@codemirror/lang-cpp";
-import { autocompletion, type Completion, type CompletionContext } from "@codemirror/autocomplete";
+import {
+  autocompletion,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+  type Completion,
+  type CompletionContext,
+} from "@codemirror/autocomplete";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import {
+  bracketMatching,
+  defaultHighlightStyle,
+  foldGutter,
+  foldKeymap,
+  indentOnInput,
+  syntaxHighlighting,
+} from "@codemirror/language";
 import { setDiagnostics, type Diagnostic } from "@codemirror/lint";
-import { EditorState } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
-import { basicSetup } from "codemirror";
-import { useEffect, useRef } from "react";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import {
+  drawSelection,
+  dropCursor,
+  EditorView,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  highlightSpecialChars,
+  keymap,
+  lineNumbers,
+} from "@codemirror/view";
+import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import type { ShaderDiagnostic } from "../renderer/diagnostics.ts";
+import type { EditorPreferences } from "./editorPreferences.ts";
+import { createEditorAppearance, getEditorTheme } from "./editorThemes.ts";
 
 type ShaderEditorProps = {
   value: string;
@@ -13,6 +40,7 @@ type ShaderEditorProps = {
   onChange: (value: string) => void;
   onRun: () => void;
   navigationTarget: { line: number; request: number } | null;
+  preferences: EditorPreferences;
 };
 
 const GLSL_COMPLETIONS: Completion[] = [
@@ -68,41 +96,38 @@ function glslCompletions(context: CompletionContext) {
   return { from: word.from, options: GLSL_COMPLETIONS, validFor: /^\w*$/ };
 }
 
-const editorTheme = EditorView.theme(
-  {
-    "&": {
-      height: "100%",
-      color: "#e6e4df",
-      backgroundColor: "#0d0d10",
-      fontSize: "14px",
-    },
-    ".cm-content": {
-      padding: "18px 0 90px",
-      caretColor: "#ff7340",
-      fontFamily: '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',
-      lineHeight: "1.65",
-    },
-    ".cm-scroller": { overflow: "auto" },
-    ".cm-gutters": {
-      backgroundColor: "#0d0d10",
-      color: "#55545c",
-      border: "none",
-      paddingLeft: "6px",
-    },
-    ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "#17161b" },
-    ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
-      backgroundColor: "#633c7a80",
-    },
-    ".cm-cursor": { borderLeftColor: "#ff7340", borderLeftWidth: "2px" },
-    ".cm-tooltip": {
-      backgroundColor: "#1b1a20",
-      border: "1px solid #33313b",
-      color: "#f2f0eb",
-    },
-    ".cm-diagnostic-error": { borderLeftColor: "#ff5e57" },
-  },
-  { dark: true },
-);
+const editorCore: Extension = [
+  lineNumbers(),
+  highlightActiveLineGutter(),
+  highlightSpecialChars(),
+  history(),
+  foldGutter(),
+  drawSelection(),
+  dropCursor(),
+  EditorState.allowMultipleSelections.of(true),
+  indentOnInput(),
+  syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+  bracketMatching(),
+  closeBrackets(),
+  highlightActiveLine(),
+  highlightSelectionMatches(),
+  keymap.of([
+    ...closeBracketsKeymap,
+    ...defaultKeymap,
+    ...searchKeymap,
+    ...historyKeymap,
+    ...foldKeymap,
+    ...completionKeymap,
+  ]),
+];
+
+function createCompletionExtension(preferences: EditorPreferences): Extension {
+  if (preferences.completionMode === "off") return [];
+  return autocompletion({
+    override: [glslCompletions],
+    activateOnTyping: preferences.completionMode === "typing",
+  });
+}
 
 export function ShaderEditor({
   value,
@@ -110,13 +135,26 @@ export function ShaderEditor({
   onChange,
   onRun,
   navigationTarget,
+  preferences,
 }: ShaderEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const onRunRef = useRef(onRun);
+  const appearanceCompartment = useRef(new Compartment());
+  const wrappingCompartment = useRef(new Compartment());
+  const completionCompartment = useRef(new Compartment());
   onChangeRef.current = onChange;
   onRunRef.current = onRun;
+  const palette = getEditorTheme(preferences.theme).palette;
+  const hostStyle = useMemo(
+    () =>
+      ({
+        "--sp-editor-base-background": palette.background,
+        "--sp-editor-overlay-background": palette.backgroundOverlay,
+      }) as CSSProperties,
+    [palette.background, palette.backgroundOverlay],
+  );
 
   useEffect(() => {
     const host = hostRef.current;
@@ -125,11 +163,11 @@ export function ShaderEditor({
     const state = EditorState.create({
       doc: value,
       extensions: [
-        basicSetup,
+        editorCore,
         cpp(),
-        autocompletion({ override: [glslCompletions], activateOnTyping: true }),
-        editorTheme,
-        EditorView.lineWrapping,
+        appearanceCompartment.current.of(createEditorAppearance(preferences)),
+        wrappingCompartment.current.of(preferences.lineWrapping ? EditorView.lineWrapping : []),
+        completionCompartment.current.of(createCompletionExtension(preferences)),
         EditorView.contentAttributes.of({
           "aria-label": "GLSL shader code editor",
           autocapitalize: "off",
@@ -159,6 +197,20 @@ export function ShaderEditor({
       viewRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: [
+        appearanceCompartment.current.reconfigure(createEditorAppearance(preferences)),
+        wrappingCompartment.current.reconfigure(
+          preferences.lineWrapping ? EditorView.lineWrapping : [],
+        ),
+        completionCompartment.current.reconfigure(createCompletionExtension(preferences)),
+      ],
+    });
+  }, [preferences]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -196,5 +248,5 @@ export function ShaderEditor({
     view.focus();
   }, [navigationTarget]);
 
-  return <div ref={hostRef} className="editor-host" />;
+  return <div ref={hostRef} className="editor-host" style={hostStyle} />;
 }

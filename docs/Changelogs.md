@@ -5,6 +5,17 @@ area and may summarize one or more related commits.
 
 ## 2026-08-22
 
+### Configurable mobile editor appearance
+
+- Added device-local Editor configuration for syntax theme, locally bundled JetBrains Mono or IBM
+  Plex Mono typography, font size, line spacing, ligatures, line wrapping, completion behavior,
+  inline help, and the default phone Code presentation.
+- Replaced the editor's fallback token colors with complete Pocket Night, Catppuccin Mocha,
+  Solarized Dark, and Solarized Light CodeMirror themes, including more legible gutter and comment
+  colors and live reconfiguration without resetting source or selection.
+- Added a phone Code header control that cycles between an opaque Focus workspace and a readable
+  translucent editor over the live shader preview.
+
 ### Durable portable shader library
 
 - Replaced the single localStorage draft with a versioned SQLite WASM repository running in a

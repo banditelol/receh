@@ -2,12 +2,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { DEFAULT_SHADER } from "./defaultShader.ts";
 import { getActivePass, updateActivePassSource } from "./document/shaderDocument.ts";
 import { useShaderLibrary } from "./document/useShaderLibrary.ts";
+import {
+  loadEditorPreferences,
+  saveEditorPreferences,
+  type EditorPreferences,
+} from "./editor/editorPreferences.ts";
 import { ShaderEditor } from "./editor/ShaderEditor.tsx";
 import { ExportPanel } from "./export/ExportPanel.tsx";
 import { useVisualViewport } from "./hooks/useVisualViewport.ts";
 import { LibraryPanel, SAVE_STATUS_LABELS } from "./library/LibraryPanel.tsx";
 import { ShaderCanvas } from "./renderer/ShaderCanvas.tsx";
 import type { ShaderDiagnostic } from "./renderer/diagnostics.ts";
+import { EditorSettingsPanel } from "./settings/EditorSettingsPanel.tsx";
 
 type MobilePane = "preview" | "code";
 type CompileStatus = "compiling" | "ready" | "error" | "unsupported";
@@ -40,12 +46,20 @@ export function App() {
   const [paused, setPaused] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editorPreferences, setEditorPreferences] = useState(() =>
+    loadEditorPreferences(window.localStorage),
+  );
   const [navigationTarget, setNavigationTarget] = useState<{
     line: number;
     request: number;
   } | null>(null);
   const activePass = getActivePass(document);
   const source = activePass.source;
+
+  useEffect(() => {
+    saveEditorPreferences(window.localStorage, editorPreferences);
+  }, [editorPreferences]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -106,8 +120,21 @@ export function App() {
     void refreshSnapshots();
   };
 
+  const updateEditorPreferences = (patch: Partial<EditorPreferences>) => {
+    setEditorPreferences((current) => ({ ...current, ...patch }));
+  };
+
+  const toggleCodePresentation = () => {
+    setEditorPreferences((current) => ({
+      ...current,
+      phoneCodePresentation: current.phoneCodePresentation === "focus" ? "overlay" : "focus",
+    }));
+  };
+
   return (
-    <main className={`app app--${mobilePane}`}>
+    <main
+      className={`app app--${mobilePane} app--code-presentation-${editorPreferences.phoneCodePresentation}`}
+    >
       <header className="topbar">
         <button
           className="brand library-trigger"
@@ -131,6 +158,9 @@ export function App() {
           </button>
           <button className="export-button" type="button" onClick={() => setExportOpen(true)}>
             Export
+          </button>
+          <button className="config-button" type="button" onClick={() => setSettingsOpen(true)}>
+            Config
           </button>
           <button
             className="run-button"
@@ -172,7 +202,21 @@ export function App() {
               <span className="eyebrow">Fragment shader</span>
               <strong>{activePass.name}</strong>
             </div>
-            <span className="language-pill">GLSL 300 ES</span>
+            <div className="panel-heading-actions">
+              <span className="language-pill">GLSL 300 ES</span>
+              <button
+                className="panel-action presentation-toggle"
+                type="button"
+                onClick={toggleCodePresentation}
+                aria-label={
+                  editorPreferences.phoneCodePresentation === "focus"
+                    ? "Show the live preview behind the code editor"
+                    : "Use an opaque code editor"
+                }
+              >
+                {editorPreferences.phoneCodePresentation === "focus" ? "Overlay" : "Focus"}
+              </button>
+            </div>
           </div>
           <ShaderEditor
             value={source}
@@ -180,6 +224,7 @@ export function App() {
             onChange={updateSource}
             onRun={() => setCompileRequest((request) => request + 1)}
             navigationTarget={navigationTarget}
+            preferences={editorPreferences}
           />
           {status === "error" && (
             <div className="error-drawer" role="status" aria-live="polite">
@@ -250,6 +295,14 @@ export function App() {
           onImportLibrary={importLibrary}
           onExportLibrary={exportLibrary}
           onRestoreSnapshot={restoreSnapshot}
+        />
+      )}
+
+      {settingsOpen && (
+        <EditorSettingsPanel
+          preferences={editorPreferences}
+          onChange={updateEditorPreferences}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
     </main>

@@ -193,6 +193,7 @@ button:focus-visible,
 
 .quiet-button,
 .export-button,
+.config-button,
 .run-button,
 .icon-button {
   border-radius: 9px;
@@ -202,6 +203,7 @@ button:focus-visible,
 
 .quiet-button,
 .export-button,
+.config-button,
 .icon-button {
   padding: 0 12px;
   color: var(--muted-strong);
@@ -210,14 +212,20 @@ button:focus-visible,
 
 .quiet-button:hover,
 .export-button:hover,
+.config-button:hover,
 .icon-button:hover {
   color: var(--text);
   background: var(--panel-raised);
 }
 
-.export-button {
+.export-button,
+.config-button {
   padding: 0 12px;
   border: 1px solid var(--line);
+}
+
+.config-button {
+  border-color: transparent;
 }
 
 .run-button {
@@ -376,6 +384,14 @@ button:focus-visible,
   gap: 3px;
 }
 
+.panel-heading .panel-heading-actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  gap: 6px;
+}
+
 .panel-heading strong {
   font:
     600 12px/1 ui-monospace,
@@ -400,7 +416,31 @@ button:focus-visible,
     monospace;
 }
 
+.panel-action {
+  min-width: 44px;
+  min-height: 38px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted-strong);
+  background: rgb(255 255 255 / 3%);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.panel-action:hover,
+.panel-action:focus-visible {
+  color: var(--text);
+  background: var(--panel-raised);
+}
+
+.presentation-toggle {
+  display: none;
+}
+
 .editor-host {
+  --sp-editor-background: var(--sp-editor-base-background);
+
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -461,7 +501,8 @@ button:focus-visible,
 }
 
 .export-backdrop,
-.library-backdrop {
+.library-backdrop,
+.settings-backdrop {
   position: fixed;
   inset: 0;
   z-index: 30;
@@ -474,6 +515,10 @@ button:focus-visible,
 
 .library-backdrop {
   z-index: 32;
+}
+
+.settings-backdrop {
+  z-index: 34;
 }
 
 .export-panel {
@@ -498,13 +543,150 @@ button:focus-visible,
   box-shadow: 0 28px 90px rgb(0 0 0 / 62%);
 }
 
+.settings-panel {
+  width: min(640px, 100%);
+  max-height: min(760px, calc(var(--app-height) - 32px));
+  padding: 20px;
+  overflow: auto;
+  border: 1px solid #37343e;
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgb(31 26 37 / 99%), rgb(15 15 18 / 99%) 42%);
+  box-shadow: 0 28px 90px rgb(0 0 0 / 62%);
+}
+
 .export-heading,
 .library-heading,
+.settings-heading,
 .library-section-heading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+}
+
+.settings-heading h2 {
+  margin: 5px 0 0;
+  font-size: 22px;
+  letter-spacing: -0.025em;
+}
+
+.settings-intro {
+  margin: 14px 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.editor-setting-preview {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  overflow: hidden;
+  border: 1px solid;
+  border-radius: 11px;
+  white-space: nowrap;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.settings-field {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-field > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.settings-field strong {
+  color: var(--text);
+  font:
+    650 10px/1 "JetBrains Mono",
+    ui-monospace,
+    monospace;
+}
+
+.settings-field select {
+  width: 100%;
+  height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  outline: 0;
+  color: var(--text);
+  background: #111014;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settings-field select:focus-visible,
+.settings-field input:focus-visible {
+  border-color: var(--orange);
+  outline: 2px solid rgb(255 106 54 / 18%);
+  outline-offset: 1px;
+}
+
+.settings-field--range {
+  align-content: center;
+}
+
+.settings-field input[type="range"] {
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  accent-color: var(--orange);
+}
+
+.settings-toggles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.settings-toggles label {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--muted-strong);
+  background: rgb(255 255 255 / 3%);
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.settings-toggles input {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--orange);
+}
+
+.settings-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
 }
 
 .library-heading h2,
@@ -978,6 +1160,11 @@ button:focus-visible,
     padding: 0 10px;
   }
 
+  .config-button {
+    min-height: 40px;
+    padding: 0 8px;
+  }
+
   .run-button {
     min-height: 40px;
   }
@@ -996,8 +1183,43 @@ button:focus-visible,
   }
 
   .app--preview .code-pane,
-  .app--code .preview-pane {
+  .app--code.app--code-presentation-focus .preview-pane {
     display: none;
+  }
+
+  .app--code.app--code-presentation-overlay .workspace {
+    position: relative;
+  }
+
+  .app--code.app--code-presentation-overlay .preview-pane,
+  .app--code.app--code-presentation-overlay .code-pane {
+    position: absolute;
+    inset: 0;
+  }
+
+  .app--code.app--code-presentation-overlay .preview-pane {
+    display: block;
+  }
+
+  .app--code.app--code-presentation-overlay .code-pane {
+    z-index: 2;
+    background: transparent;
+  }
+
+  .app--code.app--code-presentation-overlay .editor-host {
+    --sp-editor-background: var(--sp-editor-overlay-background);
+
+    backdrop-filter: blur(2px);
+  }
+
+  .app--code.app--code-presentation-overlay .panel-heading {
+    background: rgb(17 16 20 / 88%);
+    backdrop-filter: blur(10px);
+  }
+
+  .app--code.app--code-presentation-overlay .preview-toolbar,
+  .app--code.app--code-presentation-overlay .preview-hint {
+    visibility: hidden;
   }
 
   .code-pane {
@@ -1006,6 +1228,12 @@ button:focus-visible,
 
   .panel-heading {
     padding: 0 12px;
+  }
+
+  .presentation-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .preview-toolbar {
@@ -1079,7 +1307,8 @@ button:focus-visible,
     padding: 0;
   }
 
-  .library-backdrop {
+  .library-backdrop,
+  .settings-backdrop {
     place-items: end center;
     padding: 0;
   }
@@ -1100,6 +1329,20 @@ button:focus-visible,
       max(14px, env(safe-area-inset-left));
     border-width: 1px 0 0;
     border-radius: 20px 20px 0 0;
+  }
+
+  .settings-panel {
+    width: 100%;
+    max-height: calc(var(--app-height) - max(8px, env(safe-area-inset-top)));
+    padding: 18px max(14px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom))
+      max(14px, env(safe-area-inset-left));
+    border-width: 1px 0 0;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .settings-grid,
+  .settings-toggles {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .library-storage small {
