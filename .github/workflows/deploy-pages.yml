@@ -1,8 +1,6 @@
 name: Deploy to GitHub Pages
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -40,9 +38,7 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Build GitHub Pages site
-        run: vp build
-        env:
-          GITHUB_PAGES: "true"
+        run: vp build --mode github-pages
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v4

@@ -2,8 +2,8 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite-plus";
 import { pwaServiceWorkerPlugin } from "./build/pwaServiceWorker.ts";
 
-export default defineConfig({
-  base: process.env.GITHUB_PAGES === "true" ? "/receh/" : "/",
+export default defineConfig(({ mode }) => ({
+  base: mode === "github-pages" ? "/receh/" : "/",
   plugins: [react(), pwaServiceWorkerPlugin()],
   optimizeDeps: {
     exclude: ["@sqlite.org/sqlite-wasm"],
@@ -36,4 +36,4 @@ export default defineConfig({
     rules: { "vite-plus/prefer-vite-plus-imports": "error" },
     options: { typeAware: true, typeCheck: true },
   },
-});
+}));
