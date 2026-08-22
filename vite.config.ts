@@ -1,14 +1,9 @@
 import react from "@vitejs/plugin-react";
-import { sites } from "@openai/sites-vite-plugin";
 import { defineConfig } from "vite-plus";
 import { pwaServiceWorkerPlugin } from "./build/pwaServiceWorker.ts";
-import { sitesStaticWorkerPlugin } from "./build/sitesStaticWorker.ts";
 
 export default defineConfig({
-  plugins: [react(), sites(), pwaServiceWorkerPlugin(), sitesStaticWorkerPlugin()],
-  build: {
-    outDir: "dist/client",
-  },
+  plugins: [react(), pwaServiceWorkerPlugin()],
   optimizeDeps: {
     exclude: ["@sqlite.org/sqlite-wasm"],
   },
