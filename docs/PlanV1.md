@@ -108,6 +108,40 @@ unless real-device validation uncovers a blocking need.
 | WebGPU and alternate languages     | Deferred          | Post-V1                                             |
 | Community, tutorials, marketplace  | Deferred          | Post-V1                                             |
 
+## Recommended next phase
+
+Finish the browser V1 before starting a React Native shell. The repository boundary, portable
+SQLite library, and versioned document model are already the right preparation for native work;
+starting the native client now would duplicate editor, renderer, storage, and recovery hardening
+before those behaviors are stable.
+
+Use this implementation order:
+
+1. **Shareable single-pass documents.** This is the smallest remaining user-facing V1 gap and
+   exercises serialization, validation, migration, and safe import without adding a server. Define
+   the payload limits and failure behavior before multi-pass documents make shared payloads larger.
+2. **Named snapshots and history.** Promote the existing automatic recovery snapshots into a user
+   workflow with optional names, clear automatic/manual labels, pinning or retention protection,
+   preview metadata, and guarded restore. Reuse the current snapshot storage rather than building a
+   second history system.
+3. **Revision-safe compile scheduling.** Ensure delayed compile results can never replace a newer
+   source revision, and add focused tests for rapid edits, project switches, pass switches, and
+   stale diagnostics. Complete this reliability boundary before one document can run several
+   passes concurrently.
+4. **Ordered fragment passes.** Add framebuffer-backed pass execution and pass management only
+   after sharing, restoration, and compilation have stable version/revision semantics. Keep common
+   source and texture/media inputs out of the first multi-pass slice unless they are required by a
+   concrete three-pass fixture.
+5. **Physical-device release gate.** Run a small real-device smoke matrix after each checkpoint,
+   then complete the installation, accessibility, offline, thermal, memory, and media-export matrix
+   after multi-pass is stable.
+
+The immediate checkpoint should therefore deliver versioned URL encode/decode utilities, explicit
+size limits, copy and native share-sheet actions, and restoration into a new unsaved project. Its
+definition of done is a safe round trip for Unicode titles and GLSL source, clear rejection of
+malformed or oversized payloads, no replacement of the active project, and verified iOS Safari and
+Android Chrome deep-link behavior. Large documents continue to use project or SQLite export.
+
 ## What to do next
 
 ### 1. Durable local documents and recovery

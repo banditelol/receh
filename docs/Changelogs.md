@@ -5,6 +5,12 @@ area and may summarize one or more related commits.
 
 ## 2026-08-22
 
+### Next-phase planning
+
+- Recommended closing the browser V1 in a risk-ordered sequence: shareable documents, named
+  snapshot history, revision-safe compilation, ordered passes, and final physical-device release
+  validation, with React Native work remaining after the browser behavior is stable.
+
 ### Installable offline application
 
 - Added a production web manifest, adaptive/maskable and Apple application icons, browser install
