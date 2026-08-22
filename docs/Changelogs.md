@@ -5,6 +5,12 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Fullscreen preview
+
+- Added a preview-toolbar mode that expands the live shader across the entire viewport, uses the
+  browser Fullscreen API when available, and retains a viewport-filling fallback with visible Exit
+  and Escape controls on unsupported browsers.
+
 ### Install prompt dismissal
 
 - Persisted the install prompt's **Not now** choice locally so it stays dismissed across the

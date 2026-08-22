@@ -65,6 +65,7 @@ export function App() {
   const [diagnostics, setDiagnostics] = useState<ShaderDiagnostic[]>([]);
   const [mobilePane, setMobilePane] = useState<MobilePane>("preview");
   const [paused, setPaused] = useState(false);
+  const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -75,6 +76,7 @@ export function App() {
   const [searchRequest, setSearchRequest] = useState(0);
   const [shareImportNotice, setShareImportNotice] = useState("");
   const shareImportStartedRef = useRef(false);
+  const previewPaneRef = useRef<HTMLElement>(null);
   const [editorPreferences, setEditorPreferences] = useState(() =>
     loadEditorPreferences(window.localStorage),
   );
@@ -122,6 +124,25 @@ export function App() {
     return () => window.clearTimeout(timer);
   }, [source]);
 
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (window.document.fullscreenElement === previewPaneRef.current) setPreviewFullscreen(true);
+      else if (window.document.fullscreenElement === null) setPreviewFullscreen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && window.document.fullscreenElement === null) {
+        setPreviewFullscreen(false);
+      }
+    };
+
+    window.document.addEventListener("fullscreenchange", handleFullscreenChange);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   const handleCompileState = useCallback(
     (state: { status: CompileStatus; diagnostics: ShaderDiagnostic[]; message: string }) => {
       setStatus(state.status);
@@ -159,6 +180,24 @@ export function App() {
 
   const updateSource = (nextSource: string) => {
     setDocument((current) => updateActivePassSource(current, nextSource));
+  };
+
+  const togglePreviewFullscreen = async () => {
+    const previewPane = previewPaneRef.current;
+    if (!previewPane) return;
+
+    if (previewFullscreen) {
+      if (window.document.fullscreenElement === previewPane) {
+        await window.document.exitFullscreen().catch(() => undefined);
+      }
+      setPreviewFullscreen(false);
+      return;
+    }
+
+    setPreviewFullscreen(true);
+    if (previewPane.requestFullscreen) {
+      await previewPane.requestFullscreen().catch(() => undefined);
+    }
   };
 
   const navigateToDiagnostic = (diagnostic: ShaderDiagnostic) => {
@@ -245,7 +284,11 @@ export function App() {
       </header>
 
       <section className="workspace">
-        <section className="preview-pane" aria-label="Shader preview panel">
+        <section
+          ref={previewPaneRef}
+          className={`preview-pane ${previewFullscreen ? "preview-pane--fullscreen" : ""}`}
+          aria-label="Shader preview panel"
+        >
           <ShaderCanvas
             source={source}
             compileRequest={compileRequest}
@@ -274,6 +317,17 @@ export function App() {
                 aria-label={paused ? "Resume animation" : "Pause animation"}
               >
                 {paused ? "Play" : "Pause"}
+              </button>
+              <button
+                className="icon-button"
+                type="button"
+                onClick={() => void togglePreviewFullscreen()}
+                aria-label={
+                  previewFullscreen ? "Exit fullscreen preview" : "Open fullscreen preview"
+                }
+                aria-pressed={previewFullscreen}
+              >
+                {previewFullscreen ? "Exit" : "Full"}
               </button>
             </span>
           </div>

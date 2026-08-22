@@ -259,6 +259,24 @@ button:focus-visible,
   background: #050506;
 }
 
+.preview-pane--fullscreen,
+.preview-pane:fullscreen {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  border: 0;
+  background: #050506;
+}
+
+.preview-pane--fullscreen .preview-toolbar,
+.preview-pane:fullscreen .preview-toolbar {
+  right: max(13px, env(safe-area-inset-right));
+  bottom: max(13px, env(safe-area-inset-bottom));
+  left: max(13px, env(safe-area-inset-left));
+}
+
 .canvas-shell,
 .shader-canvas {
   width: 100%;
@@ -1986,6 +2004,11 @@ button:focus-visible,
 
   .preview-toolbar {
     bottom: 12px;
+  }
+
+  .preview-pane--fullscreen,
+  .preview-pane:fullscreen {
+    display: block;
   }
 
   .pwa-prompt {
