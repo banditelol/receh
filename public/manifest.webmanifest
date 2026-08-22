@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Shader Pocket",
-  "short_name": "Shader Pocket",
-  "description": "A local-first mobile GLSL editor with live previews and portable projects.",
+  "name": "receh",
+  "short_name": "receh",
+  "description": "A small, local-first GLSL editor for playful explorations.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

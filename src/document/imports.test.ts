@@ -12,10 +12,10 @@ describe("project imports", () => {
   });
 
   it("validates project extensions", () => {
-    expect(() => parseProjectImport("shader.txt", "source")).toThrow(".shaderpocket.json");
+    expect(() => parseProjectImport("shader.txt", "source")).toThrow(".receh.json");
   });
 
-  it("parses complete Shader Pocket projects", () => {
+  it("parses complete receh projects", () => {
     const document = parseProjectImport(
       "portable.shaderpocket.json",
       JSON.stringify({ schemaVersion: 0, title: "Portable", source: "source" }),

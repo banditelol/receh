@@ -11,7 +11,7 @@ describe("export downloads", () => {
   it("exports the complete project schema", async () => {
     const file = createProjectFile(createShaderDocument("shader source"));
 
-    expect(file.filename).toBe("untitled-shader.shaderpocket.json");
+    expect(file.filename).toBe("untitled-shader.receh.json");
     expect(await file.blob.text()).toContain('"schemaVersion": 2');
   });
 

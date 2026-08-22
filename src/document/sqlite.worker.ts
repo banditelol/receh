@@ -348,7 +348,7 @@ async function importLibrary(bytes: Uint8Array): Promise<LibraryImportResult> {
     const applicationId = getPragmaNumber(imported, "application_id");
     const version = getPragmaNumber(imported, "user_version");
     if (applicationId !== SHADER_POCKET_APPLICATION_ID) {
-      throw new Error("This is not a Shader Pocket SQLite library.");
+      throw new Error("This is not a receh SQLite library.");
     }
     if (version !== 1 && version !== SHADER_POCKET_DATABASE_VERSION) {
       throw new Error(`Shader library version ${version} is not supported.`);

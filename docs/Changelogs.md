@@ -5,6 +5,13 @@ area and may summarize one or more related commits.
 
 ## 2026-08-22
 
+### Product naming
+
+- Renamed the application to **receh**, a small, playful space for non-serious shader
+  exploration. The app, install metadata, portable project downloads, library backups, and current
+  product documentation use the new name; imports continue to accept legacy `.shaderpocket.json`
+  files.
+
 ### Next-phase planning
 
 - Recommended closing the browser V1 in a risk-ordered sequence: shareable documents, named

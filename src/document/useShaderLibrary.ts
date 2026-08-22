@@ -218,7 +218,7 @@ export function useShaderLibrary() {
     const bytes = await repository.exportLibrary();
     downloadBlob(
       new Blob([bytes.slice().buffer], { type: "application/vnd.sqlite3" }),
-      "shader-pocket.sqlite3",
+      "receh.sqlite3",
     );
   }, [persistDocument]);
 

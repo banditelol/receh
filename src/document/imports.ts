@@ -9,7 +9,7 @@ export const MAX_LIBRARY_IMPORT_BYTES = 128 * 1024 * 1024;
 
 function titleFromFilename(filename: string) {
   const title = filename
-    .replace(/\.shaderpocket\.json$/i, "")
+    .replace(/\.(?:receh|shaderpocket)\.json$/i, "")
     .replace(/\.frag$/i, "")
     .trim();
   return title || "Imported shader";
@@ -23,8 +23,12 @@ export function parseProjectImport(filename: string, contents: string): ShaderDo
       passes: [{ ...document.passes[0], name: filename }],
     };
   }
-  if (!filename.toLowerCase().endsWith(".shaderpocket.json") && !filename.endsWith(".json")) {
-    throw new Error("Choose a .shaderpocket.json or .frag project file.");
+  if (
+    !filename.toLowerCase().endsWith(".receh.json") &&
+    !filename.toLowerCase().endsWith(".shaderpocket.json") &&
+    !filename.endsWith(".json")
+  ) {
+    throw new Error("Choose a .receh.json or .frag project file.");
   }
   return parseImportedShaderDocument(contents);
 }
@@ -39,7 +43,7 @@ export async function readProjectImport(file: File) {
 export async function readLibraryImport(file: File) {
   const name = file.name.toLowerCase();
   if (!name.endsWith(".sqlite3") && !name.endsWith(".sqlite") && !name.endsWith(".db")) {
-    throw new Error("Choose a Shader Pocket .sqlite3 library file.");
+    throw new Error("Choose a receh .sqlite3 library file.");
   }
   if (file.size > MAX_LIBRARY_IMPORT_BYTES) {
     throw new Error("This library is larger than the 128 MB import limit.");

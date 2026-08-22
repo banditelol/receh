@@ -193,7 +193,7 @@ export function App() {
             ƒ
           </span>
           <span className="brand-copy">
-            <strong>Shader Pocket</strong>
+            <strong>receh</strong>
             <small className={`save-state save-state--${saveStatus}`} aria-live="polite">
               {SAVE_STATUS_LABELS[saveStatus]}
             </small>

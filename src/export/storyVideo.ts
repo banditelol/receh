@@ -97,7 +97,7 @@ async function renderDeterministicStoryVideo(
     latencyMode: "quality",
     hardwareAcceleration: "no-preference",
   });
-  output.addVideoTrack(videoSource, { name: "Shader Pocket Story" });
+  output.addVideoTrack(videoSource, { name: "receh Story" });
 
   try {
     await output.start();

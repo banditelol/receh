@@ -14,7 +14,7 @@ export function createProjectFile(document: ShaderDocument) {
     blob: new Blob([`${JSON.stringify(document, null, 2)}\n`], {
       type: "application/json;charset=utf-8",
     }),
-    filename: `${safeFilename(document.title)}.shaderpocket.json`,
+    filename: `${safeFilename(document.title)}.receh.json`,
   };
 }
 

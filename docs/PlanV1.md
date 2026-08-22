@@ -1,4 +1,4 @@
-# Shader Pocket V1 product plan
+# receh V1 product plan
 
 Status: active  
 Last updated: 2026-08-22
@@ -32,7 +32,7 @@ unless real-device validation uncovers a blocking need.
 
 - CodeMirror 6 GLSL ES 3.00 editing with configurable locally bundled monospace fonts, four complete
   syntax themes, adjustable density and wrapping, and `Cmd+Enter`/`Ctrl+Enter` compilation.
-- Source-aware local completions for built-ins, snippets, Shader Pocket uniforms, declared symbols,
+- Source-aware local completions for built-ins, snippets, receh uniforms, declared symbols,
   qualifier contexts, and swizzles, plus source Find and an offline fuzzy reference for 62 common
   GLSL ES functions with signatures, descriptions, examples, desktop hover, and phone cursor help.
 - Dedicated phone Focus and live-preview Overlay code presentations with a device-local default.
@@ -67,9 +67,9 @@ unless real-device validation uncovers a blocking need.
 
 ### Portable files and media
 
-- Complete `.shaderpocket.json` project download.
+- Complete `.receh.json` project download.
 - Active `.frag` GLSL source download.
-- Validated `.shaderpocket.json` and `.frag` project import that creates safe new local projects.
+- Validated `.receh.json` and `.frag` project import that creates safe new local projects.
 - Consistent whole-library SQLite export and merge import with application/schema validation and
   collision-safe project, pass, and snapshot ID remapping.
 - 1080 × 1080 PNG rendering through the shared WebGL2 runtime.
@@ -153,8 +153,8 @@ Status: prepared in the browser; storage-pressure and real-device hardening rema
   use the same database through Expo SQLite. Keep small device-specific UI preferences in
   localStorage.
 - Store multiple shader projects, their ordered passes, and recovery snapshots in one portable
-  `shader-pocket.sqlite3` library.
-- Import `.shaderpocket.json` and `.frag` files with validation, migration, duplicate handling, and a
+  `receh.sqlite3` library.
+- Import `.receh.json` and `.frag` files with validation, migration, duplicate handling, and a
   recovery copy before destructive replacement.
 - Export and import a consistent whole-library SQLite backup for moving work between machines;
   merge by default and reserve whole-library replacement for an explicit recovery action.
@@ -184,7 +184,7 @@ This is the next implementation checkpoint.
 Status: prepared in the browser; real-device input and accessibility coverage remain in checkpoint 5.
 
 - Parse declared float, int, bool, vector, and color uniforms into a typed model. Runtime-managed
-  Shader Pocket uniforms are intentionally excluded.
+  receh uniforms are intentionally excluded.
 - Add a keyboard-safe Tune sheet on phones and a compact inspector on larger screens.
 - Update runtime uniform values and still/video exports without moving the code cursor or
   recompiling the shader.

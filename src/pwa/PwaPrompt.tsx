@@ -55,13 +55,13 @@ export function PwaPrompt({ pwa }: PwaPromptProps) {
     <aside
       className={`pwa-prompt ${pwa.manualIosInstall ? "pwa-prompt--install-guide" : ""}`}
       role="status"
-      aria-label="Install Shader Pocket"
+      aria-label="Install receh"
     >
       <span className="pwa-prompt-mark" aria-hidden="true">
         ƒ
       </span>
       <span className="pwa-prompt-copy">
-        <strong>Install Shader Pocket</strong>
+        <strong>Install receh</strong>
         <small>
           {pwa.manualIosInstall
             ? "In Share, choose Add to Home Screen."

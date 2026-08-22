@@ -174,7 +174,7 @@ export function parseImportedShaderDocument(serialized: string): ShaderDocument 
     throw new Error("This project file does not contain valid JSON.");
   }
 
-  if (!isRecord(value)) throw new Error("This project file is not a Shader Pocket document.");
+  if (!isRecord(value)) throw new Error("This project file is not a receh document.");
   if (
     value.schemaVersion !== undefined &&
     value.schemaVersion !== 0 &&

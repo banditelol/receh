@@ -241,7 +241,7 @@ export function LibraryPanel({
               <input
                 className="sr-only"
                 type="file"
-                accept=".shaderpocket.json,.json,.frag,application/json,text/plain"
+                accept=".receh.json,.shaderpocket.json,.json,.frag,application/json,text/plain"
                 disabled={Boolean(busy)}
                 onChange={handleProjectImport}
               />
