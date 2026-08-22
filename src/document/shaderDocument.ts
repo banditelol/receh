@@ -1,6 +1,11 @@
 import { DEFAULT_SHADER } from "../defaultShader.ts";
+import {
+  parseShaderUniformValues,
+  type ShaderUniformValue,
+  type ShaderUniformValues,
+} from "../uniforms/uniformTypes.ts";
 
-export const SHADER_DOCUMENT_VERSION = 1 as const;
+export const SHADER_DOCUMENT_VERSION = 2 as const;
 
 export type ShaderLanguage = "glsl";
 export type ShaderPassKind = "fragment";
@@ -11,6 +16,7 @@ export type ShaderPass = {
   kind: ShaderPassKind;
   language: ShaderLanguage;
   source: string;
+  uniformValues: ShaderUniformValues;
 };
 
 export type ShaderDocument = {
@@ -50,6 +56,7 @@ function parsePass(value: unknown): ShaderPass | null {
     kind: "fragment",
     language: "glsl",
     source: value.source,
+    uniformValues: parseShaderUniformValues(value.uniformValues),
   };
 }
 
@@ -66,6 +73,7 @@ export function createShaderDocument(source = DEFAULT_SHADER): ShaderDocument {
         kind: "fragment",
         language: "glsl",
         source,
+        uniformValues: {},
       },
     ],
   };
@@ -90,6 +98,7 @@ export function createPortableShaderDocument(
         kind: "fragment",
         language: "glsl",
         source,
+        uniformValues: {},
       },
     ],
   };
@@ -129,7 +138,10 @@ export function migrateShaderDocument(value: unknown): ShaderDocument {
     return migrateV0(value);
   }
 
-  if (value.schemaVersion !== SHADER_DOCUMENT_VERSION || !Array.isArray(value.passes)) {
+  if (
+    (value.schemaVersion !== 1 && value.schemaVersion !== SHADER_DOCUMENT_VERSION) ||
+    !Array.isArray(value.passes)
+  ) {
     return createShaderDocument();
   }
 
@@ -163,14 +175,19 @@ export function parseImportedShaderDocument(serialized: string): ShaderDocument 
   }
 
   if (!isRecord(value)) throw new Error("This project file is not a Shader Pocket document.");
-  if (value.schemaVersion !== undefined && value.schemaVersion !== 0 && value.schemaVersion !== 1) {
+  if (
+    value.schemaVersion !== undefined &&
+    value.schemaVersion !== 0 &&
+    value.schemaVersion !== 1 &&
+    value.schemaVersion !== SHADER_DOCUMENT_VERSION
+  ) {
     const version =
       typeof value.schemaVersion === "string" || typeof value.schemaVersion === "number"
         ? value.schemaVersion
         : "unknown";
     throw new Error(`Shader document version ${version} is not supported.`);
   }
-  if (value.schemaVersion === 1) {
+  if (value.schemaVersion === 1 || value.schemaVersion === SHADER_DOCUMENT_VERSION) {
     if (!Array.isArray(value.passes) || value.passes.length === 0) {
       throw new Error("This project does not contain a fragment pass.");
     }
@@ -195,6 +212,34 @@ export function updateActivePassSource(document: ShaderDocument, source: string)
     ...document,
     passes: document.passes.map((pass) =>
       pass.id === document.activePassId ? { ...pass, source } : pass,
+    ) as [ShaderPass, ...ShaderPass[]],
+  };
+}
+
+export function updateActivePassUniformValue(
+  document: ShaderDocument,
+  name: string,
+  value: ShaderUniformValue,
+): ShaderDocument {
+  const activePass = getActivePass(document);
+  if (Object.is(activePass.uniformValues[name], value)) return document;
+
+  return {
+    ...document,
+    passes: document.passes.map((pass) =>
+      pass.id === document.activePassId
+        ? { ...pass, uniformValues: { ...pass.uniformValues, [name]: value } }
+        : pass,
+    ) as [ShaderPass, ...ShaderPass[]],
+  };
+}
+
+export function resetActivePassUniformValues(document: ShaderDocument): ShaderDocument {
+  if (Object.keys(getActivePass(document).uniformValues).length === 0) return document;
+  return {
+    ...document,
+    passes: document.passes.map((pass) =>
+      pass.id === document.activePassId ? { ...pass, uniformValues: {} } : pass,
     ) as [ShaderPass, ...ShaderPass[]],
   };
 }

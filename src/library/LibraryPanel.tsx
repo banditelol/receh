@@ -33,6 +33,7 @@ const SNAPSHOT_LABELS: Record<SnapshotSummary["reason"], string> = {
   "before-reset": "Before reset",
   "before-import": "Before import",
   "before-restore": "Before restore",
+  "before-bake": "Before baking controls",
   migration: "Browser draft migration",
   imported: "Imported project",
 };

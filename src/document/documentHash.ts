@@ -12,6 +12,7 @@ export function serializeDocumentContent(document: ShaderDocument) {
       kind: pass.kind,
       language: pass.language,
       source: pass.source,
+      uniformValues: pass.uniformValues,
     })),
   });
 }

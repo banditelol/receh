@@ -1,4 +1,5 @@
 import { renderShaderFrame } from "../renderer/webgl.ts";
+import type { RuntimeUniform } from "../uniforms/uniformTypes.ts";
 import { createExportRenderer } from "./renderExport.ts";
 
 export const STORY_VIDEO_WIDTH = 1080;
@@ -11,6 +12,7 @@ export type StoryVideoOptions = {
   durationSeconds: number;
   signal?: AbortSignal;
   onProgress?: (progress: number) => void;
+  uniforms?: RuntimeUniform[];
 };
 
 export type StoryVideoResult = {
@@ -112,6 +114,7 @@ async function renderDeterministicStoryVideo(
         mouse: [STORY_VIDEO_WIDTH / 2, STORY_VIDEO_HEIGHT / 2],
         drag: [0, 0],
         scroll: 0,
+        uniforms: options.uniforms,
       });
       renderer.gl.finish();
       await videoSource.add(time, frameDuration, {
@@ -209,6 +212,7 @@ async function renderRealtimeStoryVideo(
         mouse: [STORY_VIDEO_WIDTH / 2, STORY_VIDEO_HEIGHT / 2],
         drag: [0, 0],
         scroll: 0,
+        uniforms: options.uniforms,
       });
       renderer.gl.flush();
       lastFrameAt = now;

@@ -12,6 +12,7 @@ export type ShaderFrame = {
   mouse: [number, number];
   drag: [number, number];
   scroll: number;
+  uniforms?: RuntimeUniform[];
 };
 
 export type ProgramResult = { program: WebGLProgram; log: "" } | { program: null; log: string };
@@ -97,5 +98,34 @@ export function renderShaderFrame(
   gl.uniform2f(gl.getUniformLocation(program, "u_drag"), frame.drag[0], frame.drag[1]);
   gl.uniform1f(gl.getUniformLocation(program, "u_scroll"), frame.scroll);
   gl.uniform1i(gl.getUniformLocation(program, "u_frame"), frame.frame);
+  for (const uniform of frame.uniforms ?? []) {
+    const location = gl.getUniformLocation(program, uniform.name);
+    if (!location) continue;
+    if (uniform.type === "float" && typeof uniform.value === "number") {
+      gl.uniform1f(location, uniform.value);
+    } else if (uniform.type === "int" && typeof uniform.value === "number") {
+      gl.uniform1i(location, Math.round(uniform.value));
+    } else if (uniform.type === "bool" && typeof uniform.value === "boolean") {
+      gl.uniform1i(location, uniform.value ? 1 : 0);
+    } else if (Array.isArray(uniform.value)) {
+      if (uniform.type.startsWith("bvec")) {
+        const values = uniform.value.map((value) => (value ? 1 : 0));
+        if (values.length === 2) gl.uniform2iv(location, values);
+        else if (values.length === 3) gl.uniform3iv(location, values);
+        else gl.uniform4iv(location, values);
+      } else if (uniform.type.startsWith("ivec")) {
+        const values = uniform.value.map((value) => Math.round(Number(value)));
+        if (values.length === 2) gl.uniform2iv(location, values);
+        else if (values.length === 3) gl.uniform3iv(location, values);
+        else gl.uniform4iv(location, values);
+      } else {
+        const values = uniform.value.map(Number);
+        if (values.length === 2) gl.uniform2fv(location, values);
+        else if (values.length === 3) gl.uniform3fv(location, values);
+        else gl.uniform4fv(location, values);
+      }
+    }
+  }
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
+import type { RuntimeUniform } from "../uniforms/uniformTypes.ts";

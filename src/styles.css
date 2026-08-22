@@ -321,6 +321,12 @@ button:focus-visible,
   backdrop-filter: blur(18px);
 }
 
+.preview-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
 .status {
   min-width: 0;
   display: inline-flex;
@@ -572,6 +578,309 @@ button:focus-visible,
 
 .docs-backdrop {
   z-index: 36;
+}
+
+.tuner-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 38;
+  display: flex;
+  justify-content: flex-end;
+  background: rgb(4 4 6 / 64%);
+  backdrop-filter: blur(8px);
+}
+
+.tuner-panel {
+  width: min(440px, 100%);
+  height: var(--app-height);
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  padding: 20px;
+  overflow: hidden;
+  border-left: 1px solid #37343e;
+  background: linear-gradient(155deg, rgb(31 26 37 / 99%), rgb(15 15 18 / 99%) 38%);
+  box-shadow: -28px 0 90px rgb(0 0 0 / 52%);
+}
+
+.tuner-heading,
+.uniform-card-heading,
+.uniform-color-primary,
+.tuner-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tuner-heading {
+  align-items: flex-start;
+}
+
+.tuner-heading h2 {
+  margin: 5px 0 0;
+  font-size: 22px;
+  letter-spacing: -0.025em;
+}
+
+.tuner-intro {
+  margin: 14px 0 16px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.tuner-controls {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding-right: 3px;
+}
+
+.tuner-empty {
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  color: var(--muted-strong);
+  background: rgb(0 0 0 / 12%);
+}
+
+.tuner-empty strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.tuner-empty p {
+  margin: 9px 0 0;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.tuner-empty code {
+  color: #ff9a75;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+.uniform-card {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgb(0 0 0 / 14%);
+}
+
+.uniform-card-heading > span {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.uniform-card-heading strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uniform-card-heading code {
+  color: var(--muted);
+  font:
+    500 9px/1 "JetBrains Mono",
+    ui-monospace,
+    monospace;
+}
+
+.uniform-card-heading small {
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font:
+    650 8px/1 "JetBrains Mono",
+    ui-monospace,
+    monospace;
+}
+
+.uniform-number-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px;
+  align-items: center;
+  gap: 9px;
+}
+
+.uniform-number-control input[type="range"],
+.uniform-vector-control input[type="range"] {
+  min-width: 0;
+  width: 100%;
+  height: 38px;
+  margin: 0;
+  accent-color: var(--orange);
+}
+
+.uniform-number-input,
+.uniform-color-channels input,
+.uniform-hex-field input {
+  min-width: 0;
+  width: 100%;
+  height: 38px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  outline: 0;
+  color: var(--text);
+  background: #111014;
+  font:
+    550 10px/1 "JetBrains Mono",
+    ui-monospace,
+    monospace;
+}
+
+.uniform-number-input:focus,
+.uniform-color-channels input:focus,
+.uniform-hex-field input:focus {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 2px rgb(255 106 54 / 12%);
+}
+
+.uniform-vector-control {
+  display: grid;
+  gap: 5px;
+}
+
+.uniform-vector-control label {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 13px minmax(0, 1fr) 76px;
+  align-items: center;
+  gap: 8px;
+}
+
+.uniform-vector-control label > span,
+.uniform-color-channels label > span,
+.uniform-hex-field > span {
+  color: var(--muted);
+  font:
+    700 8px/1 "JetBrains Mono",
+    ui-monospace,
+    monospace;
+  text-transform: uppercase;
+}
+
+.uniform-boolean-control,
+.uniform-boolean-vector label {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted-strong);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.uniform-boolean-control input,
+.uniform-boolean-vector input {
+  width: 19px;
+  height: 19px;
+  margin: 0;
+  accent-color: var(--orange);
+}
+
+.uniform-boolean-vector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.uniform-color-control {
+  display: grid;
+  gap: 11px;
+}
+
+.uniform-color-primary {
+  align-items: end;
+}
+
+.uniform-color-swatch {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 2px solid rgb(255 255 255 / 14%);
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 25%);
+  cursor: pointer;
+}
+
+.uniform-color-swatch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.uniform-color-swatch span {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgb(255 255 255 / 18%), transparent 52%);
+}
+
+.uniform-color-swatch:focus-within {
+  outline: 2px solid var(--orange-bright);
+  outline-offset: 2px;
+}
+
+.uniform-hex-field {
+  min-width: 0;
+  display: grid;
+  flex: 1;
+  gap: 6px;
+}
+
+.uniform-color-mode {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.uniform-color-mode button {
+  min-width: 44px;
+  min-height: 38px;
+  padding: 0 8px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 8px;
+  font-weight: 750;
+}
+
+.uniform-color-mode button[aria-pressed="true"] {
+  color: #ffd2c1;
+  background: rgb(255 106 54 / 12%);
+}
+
+.uniform-color-channels {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.uniform-color-channels label {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.tuner-footer {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
 }
 
 .export-panel {
@@ -1516,6 +1825,22 @@ button:focus-visible,
 
   .preview-toolbar {
     bottom: 12px;
+  }
+
+  .tuner-backdrop {
+    align-items: flex-end;
+    justify-content: stretch;
+  }
+
+  .tuner-panel {
+    width: 100%;
+    height: min(82svh, calc(var(--app-height) - 24px));
+    padding: 16px max(14px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
+      max(14px, env(safe-area-inset-left));
+    border: 1px solid #37343e;
+    border-width: 1px 0 0;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -24px 70px rgb(0 0 0 / 58%);
   }
 
   .preview-hint {

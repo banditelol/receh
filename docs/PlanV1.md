@@ -35,6 +35,12 @@ unless real-device validation uncovers a blocking need.
 - Dedicated phone Focus and live-preview Overlay code presentations with a device-local default.
 - Raw WebGL2 full-screen triangle renderer with `u_resolution`, `u_time`, `u_time_delta`, `u_frame`,
   `u_mouse`, `u_drag`, and `u_scroll`.
+- Parsed live controls for custom float, int, bool, vector, and color uniforms. Color controls keep a
+  visual picker, Hex, RGB, and HSL entry synchronized, while numeric `@range` and `@default`
+  annotations customize sliders without introducing a separate shader format.
+- Per-pass uniform values update the live preview and media exports without recompiling, persist in
+  portable projects and SQLite backups, reset to source annotations, and can be explicitly baked
+  into GLSL constants after a recovery snapshot.
 - Debounced automatic compilation plus explicit Run.
 - Parsed compiler diagnostics that navigate back to the affected source line.
 - Last-good-program rendering when a new shader fails, context-loss messaging, pause/resume, reset,
@@ -89,7 +95,7 @@ unless real-device validation uncovers a blocking need.
 | PNG and Story MP4 export           | Prepared          | Test real-device encoding, memory, and cancellation |
 | Shareable shader URL               | Not started       | Required for V1                                     |
 | Named snapshots/history            | Not started       | Required for V1                                     |
-| Parsed uniform tuner               | Not started       | Required for V1                                     |
+| Parsed uniform tuner               | Prepared          | Harden on real phones                               |
 | Ordered fragment passes            | Not started       | Required for V1                                     |
 | Installable/offline PWA            | Not started       | Required after durable local storage                |
 | Accounts and cloud publishing      | Deferred          | Post-V1                                             |
@@ -135,10 +141,18 @@ This is the next implementation checkpoint.
 
 ### 3. Uniform tuner
 
-- Parse declared float, int, bool, vector, and color uniforms into a typed model.
+Status: prepared in the browser; real-device input and accessibility coverage remain in checkpoint 5.
+
+- Parse declared float, int, bool, vector, and color uniforms into a typed model. Runtime-managed
+  Shader Pocket uniforms are intentionally excluded.
 - Add a keyboard-safe Tune sheet on phones and a compact inspector on larger screens.
-- Update runtime uniform values without moving the code cursor or recompiling the shader.
-- Provide reset and explicit commit-to-source behavior so tuning never changes source implicitly.
+- Update runtime uniform values and still/video exports without moving the code cursor or
+  recompiling the shader.
+- Store values per pass in document schema V2 and SQLite schema V2, with automatic migration from
+  V1 projects and libraries.
+- Provide reset and explicit bake-to-source behavior so tuning never changes source implicitly.
+- Use `// @range min max step @default value` for numeric metadata and `// @color #RRGGBB` (or
+  `#RRGGBBAA`) for explicit color controls. Common color-like `vec3`/`vec4` names are inferred.
 
 ### 4. Ordered fragment passes
 

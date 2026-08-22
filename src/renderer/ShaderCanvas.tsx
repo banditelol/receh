@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { parseShaderDiagnostics, type ShaderDiagnostic } from "./diagnostics.ts";
 import { createFullscreenTriangle, createProgram, renderShaderFrame } from "./webgl.ts";
+import type { RuntimeUniform } from "../uniforms/uniformTypes.ts";
 
 type CompileState = {
   status: "compiling" | "ready" | "error" | "unsupported";
@@ -12,6 +13,7 @@ type ShaderCanvasProps = {
   source: string;
   compileRequest: number;
   paused: boolean;
+  uniforms: RuntimeUniform[];
   onCompileState: (state: CompileState) => void;
 };
 
@@ -45,17 +47,20 @@ export function ShaderCanvas({
   source,
   compileRequest,
   paused,
+  uniforms,
   onCompileState,
 }: ShaderCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runtimeRef = useRef<Runtime | null>(null);
   const sourceRef = useRef(source);
   const pausedRef = useRef(paused);
+  const uniformsRef = useRef(uniforms);
   const onCompileStateRef = useRef(onCompileState);
   const [contextLost, setContextLost] = useState(false);
 
   sourceRef.current = source;
   pausedRef.current = paused;
+  uniformsRef.current = uniforms;
   onCompileStateRef.current = onCompileState;
 
   useEffect(() => {
@@ -117,6 +122,7 @@ export function ShaderCanvas({
           mouse: runtime.mouse,
           drag: runtime.drag,
           scroll: runtime.scroll,
+          uniforms: uniformsRef.current,
         });
         runtime.lastFrameAt = now;
       }

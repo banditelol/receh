@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DEFAULT_SHADER } from "./defaultShader.ts";
-import { getActivePass, updateActivePassSource } from "./document/shaderDocument.ts";
+import {
+  getActivePass,
+  resetActivePassUniformValues,
+  updateActivePassSource,
+  updateActivePassUniformValue,
+} from "./document/shaderDocument.ts";
 import { useShaderLibrary } from "./document/useShaderLibrary.ts";
 import {
   loadEditorPreferences,
@@ -16,6 +21,13 @@ import { LibraryPanel, SAVE_STATUS_LABELS } from "./library/LibraryPanel.tsx";
 import { ShaderCanvas } from "./renderer/ShaderCanvas.tsx";
 import type { ShaderDiagnostic } from "./renderer/diagnostics.ts";
 import { EditorSettingsPanel } from "./settings/EditorSettingsPanel.tsx";
+import { UniformTunerPanel } from "./uniforms/UniformTunerPanel.tsx";
+import {
+  bakeUniformValuesIntoSource,
+  parseTunableUniforms,
+  resolveRuntimeUniforms,
+} from "./uniforms/uniformParser.ts";
+import type { ShaderUniformValue } from "./uniforms/uniformTypes.ts";
 
 type MobilePane = "preview" | "code";
 type CompileStatus = "compiling" | "ready" | "error" | "unsupported";
@@ -49,6 +61,7 @@ export function App() {
   const [exportOpen, setExportOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tunerOpen, setTunerOpen] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
   const [docsInitialName, setDocsInitialName] = useState<string>();
   const [cursorReference, setCursorReference] = useState<GlslReferenceEntry | null>(null);
@@ -62,6 +75,11 @@ export function App() {
   } | null>(null);
   const activePass = getActivePass(document);
   const source = activePass.source;
+  const uniformDefinitions = useMemo(() => parseTunableUniforms(source), [source]);
+  const runtimeUniforms = useMemo(
+    () => resolveRuntimeUniforms(uniformDefinitions, activePass.uniformValues),
+    [activePass.uniformValues, uniformDefinitions],
+  );
 
   useEffect(() => {
     saveEditorPreferences(window.localStorage, editorPreferences);
@@ -142,6 +160,19 @@ export function App() {
     setDocsOpen(true);
   };
 
+  const updateUniformValue = (name: string, value: ShaderUniformValue) => {
+    setDocument((current) => updateActivePassUniformValue(current, name, value));
+  };
+
+  const bakeUniformValues = async () => {
+    await createSnapshot("before-bake");
+    setDocument((current) => {
+      const pass = getActivePass(current);
+      const bakedSource = bakeUniformValuesIntoSource(pass.source, pass.uniformValues);
+      return updateActivePassSource(resetActivePassUniformValues(current), bakedSource);
+    });
+  };
+
   return (
     <main
       className={`app app--${mobilePane} app--code-presentation-${editorPreferences.phoneCodePresentation}`}
@@ -189,6 +220,7 @@ export function App() {
             source={source}
             compileRequest={compileRequest}
             paused={paused}
+            uniforms={runtimeUniforms}
             onCompileState={handleCompileState}
           />
           <div className="preview-toolbar">
@@ -196,14 +228,24 @@ export function App() {
               <span className="status-dot" aria-hidden="true" />
               {statusText}
             </span>
-            <button
-              className="icon-button"
-              type="button"
-              onClick={() => setPaused((value) => !value)}
-              aria-label={paused ? "Resume animation" : "Pause animation"}
-            >
-              {paused ? "Play" : "Pause"}
-            </button>
+            <span className="preview-toolbar-actions">
+              <button
+                className="icon-button"
+                type="button"
+                onClick={() => setTunerOpen(true)}
+                aria-label={`Tune ${uniformDefinitions.length} custom shader uniforms`}
+              >
+                Tune{uniformDefinitions.length > 0 ? ` ${uniformDefinitions.length}` : ""}
+              </button>
+              <button
+                className="icon-button"
+                type="button"
+                onClick={() => setPaused((value) => !value)}
+                aria-label={paused ? "Resume animation" : "Pause animation"}
+              >
+                {paused ? "Play" : "Pause"}
+              </button>
+            </span>
           </div>
         </section>
 
@@ -316,6 +358,7 @@ export function App() {
           document={document}
           source={source}
           canRender={status === "ready"}
+          uniforms={runtimeUniforms}
           onClose={() => setExportOpen(false)}
         />
       )}
@@ -349,6 +392,17 @@ export function App() {
 
       {docsOpen && (
         <GlslDocsPanel initialName={docsInitialName} onClose={() => setDocsOpen(false)} />
+      )}
+
+      {tunerOpen && (
+        <UniformTunerPanel
+          definitions={uniformDefinitions}
+          values={activePass.uniformValues}
+          onChange={updateUniformValue}
+          onReset={() => setDocument(resetActivePassUniformValues)}
+          onBake={bakeUniformValues}
+          onClose={() => setTunerOpen(false)}
+        />
       )}
     </main>
   );

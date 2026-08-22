@@ -6,6 +6,8 @@ uniform float u_time;
 uniform vec2 u_mouse;
 uniform vec2 u_drag;
 uniform float u_scroll;
+uniform vec3 u_tint; // @color #FFD0BF
+uniform float u_intensity; // @range 0.2 2.0 0.01 @default 1.0
 
 out vec4 fragColor;
 
@@ -32,7 +34,7 @@ void main() {
     palette(radius + u_time * 0.035, 0.24)
   );
 
-  color *= halo + glow;
+  color *= (halo + glow) * u_tint * u_intensity;
   color += vec3(0.9, 0.2, 0.04) * max(0.0, wave) * 0.08;
   color *= 1.0 - smoothstep(0.7, 1.35, radius);
 

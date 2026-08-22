@@ -1,4 +1,5 @@
 import { createFullscreenTriangle, createProgram, renderShaderFrame } from "../renderer/webgl.ts";
+import type { RuntimeUniform } from "../uniforms/uniformTypes.ts";
 
 type ExportRenderer = {
   canvas: HTMLCanvasElement;
@@ -44,7 +45,7 @@ export function createExportRenderer(
   };
 }
 
-export async function renderShaderPng(source: string, time = 0) {
+export async function renderShaderPng(source: string, time = 0, uniforms: RuntimeUniform[] = []) {
   const renderer = createExportRenderer(source, 1080, 1080);
 
   try {
@@ -55,6 +56,7 @@ export async function renderShaderPng(source: string, time = 0) {
       mouse: [540, 540],
       drag: [0, 0],
       scroll: 0,
+      uniforms,
     });
     renderer.gl.finish();
 

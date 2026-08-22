@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { type ShaderDocument } from "../document/shaderDocument.ts";
+import type { RuntimeUniform } from "../uniforms/uniformTypes.ts";
 import { createProjectFile, createSourceFile, downloadBlob, safeFilename } from "./downloads.ts";
 import { renderShaderPng } from "./renderExport.ts";
 import {
@@ -15,10 +16,11 @@ type ExportPanelProps = {
   document: ShaderDocument;
   source: string;
   canRender: boolean;
+  uniforms: RuntimeUniform[];
   onClose: () => void;
 };
 
-export function ExportPanel({ document, source, canRender, onClose }: ExportPanelProps) {
+export function ExportPanel({ document, source, canRender, uniforms, onClose }: ExportPanelProps) {
   const [busy, setBusy] = useState<"image" | "video" | null>(null);
   const [error, setError] = useState("");
   const [duration, setDuration] = useState(15);
@@ -62,7 +64,7 @@ export function ExportPanel({ document, source, canRender, onClose }: ExportPane
     setBusy("image");
     setError("");
     try {
-      const blob = await renderShaderPng(source);
+      const blob = await renderShaderPng(source, 0, uniforms);
       downloadBlob(blob, `${safeFilename(document.title)}-preview.png`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Image export failed.");
@@ -83,6 +85,7 @@ export function ExportPanel({ document, source, canRender, onClose }: ExportPane
     try {
       const result = await renderStoryVideo(source, {
         durationSeconds: selectedDuration,
+        uniforms,
         signal: controller.signal,
         onProgress: setProgress,
       });

@@ -6,8 +6,9 @@ import {
   migrateShaderDocument,
   parseImportedShaderDocument,
   parseShaderDocument,
-  updateDocumentTitle,
   updateActivePassSource,
+  updateActivePassUniformValue,
+  updateDocumentTitle,
 } from "./shaderDocument.ts";
 
 describe("shader document migrations", () => {
@@ -18,7 +19,7 @@ describe("shader document migrations", () => {
       source: "void main() {}",
     });
 
-    expect(document.schemaVersion).toBe(1);
+    expect(document.schemaVersion).toBe(2);
     expect(document.title).toBe("Legacy");
     expect(getActivePass(document).source).toBe("void main() {}");
   });
@@ -33,6 +34,7 @@ describe("shader document migrations", () => {
     });
 
     expect(document.activePassId).toBe("main");
+    expect(getActivePass(document).uniformValues).toEqual({});
   });
 
   it("falls back to a valid document for corrupt JSON", () => {
@@ -66,6 +68,14 @@ describe("shader document updates", () => {
 
   it("normalizes an empty title", () => {
     expect(updateDocumentTitle(createShaderDocument(), "   ").title).toBe("Untitled shader");
+  });
+
+  it("updates a pass uniform without mutating the previous document", () => {
+    const before = createShaderDocument();
+    const after = updateActivePassUniformValue(before, "u_tint", [1, 0.5, 0]);
+
+    expect(getActivePass(before).uniformValues).toEqual({});
+    expect(getActivePass(after).uniformValues.u_tint).toEqual([1, 0.5, 0]);
   });
 
   it("reidentifies a document and all of its passes", () => {

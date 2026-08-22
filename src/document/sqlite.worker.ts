@@ -68,14 +68,33 @@ function ensureDatabaseSchema(db: Database) {
   if (version > SHADER_POCKET_DATABASE_VERSION) {
     throw new Error(`Shader library version ${version} is newer than this app supports.`);
   }
-  if (version !== 0 && version !== SHADER_POCKET_DATABASE_VERSION) {
+  if (version !== 0 && version !== 1 && version !== SHADER_POCKET_DATABASE_VERSION) {
     throw new Error(`Shader library version ${version} is not supported.`);
   }
 
   db.exec(CREATE_DATABASE_SCHEMA_SQL);
+  if (version === 1) {
+    db.exec("ALTER TABLE passes ADD COLUMN uniform_values_json TEXT NOT NULL DEFAULT '{}'");
+  }
   db.exec(`PRAGMA application_id = ${SHADER_POCKET_APPLICATION_ID}`);
   db.exec(`PRAGMA user_version = ${SHADER_POCKET_DATABASE_VERSION}`);
   db.exec("PRAGMA foreign_keys = ON");
+}
+
+function hasUniformValuesColumn(db: Database) {
+  return db
+    .selectObjects("PRAGMA table_info(passes)")
+    .some((column) => column.name === "uniform_values_json");
+}
+
+function parseUniformValuesJson(value: SqlValue | undefined) {
+  if (typeof value !== "string") return {};
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 async function openDatabase() {
@@ -110,9 +129,12 @@ function loadDocumentFrom(db: Database, projectId: string): ShaderDocument | nul
   );
   if (!project) return null;
 
+  const uniformValuesProjection = hasUniformValuesColumn(db)
+    ? "uniform_values_json"
+    : "'{}' AS uniform_values_json";
   const passes = db
     .selectObjects(
-      `SELECT id, name, kind, language, source
+      `SELECT id, name, kind, language, source, ${uniformValuesProjection}
        FROM passes WHERE project_id = ? ORDER BY position`,
       [projectId],
     )
@@ -122,6 +144,7 @@ function loadDocumentFrom(db: Database, projectId: string): ShaderDocument | nul
       kind: asString(row.kind, "pass kind"),
       language: asString(row.language, "pass language"),
       source: asString(row.source, "pass source"),
+      uniformValues: parseUniformValuesJson(row.uniform_values_json),
     }));
 
   return migrateShaderDocument({
@@ -171,9 +194,18 @@ function writeDocumentTo(db: Database, document: ShaderDocument, timestamp = Dat
     document.passes.forEach((pass, position) => {
       db.exec({
         sql: `INSERT INTO passes (
-                id, project_id, position, name, kind, language, source
-              ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        bind: [pass.id, document.id, position, pass.name, pass.kind, pass.language, pass.source],
+                id, project_id, position, name, kind, language, source, uniform_values_json
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        bind: [
+          pass.id,
+          document.id,
+          position,
+          pass.name,
+          pass.kind,
+          pass.language,
+          pass.source,
+          JSON.stringify(pass.uniformValues),
+        ],
       });
     });
   });
@@ -185,6 +217,7 @@ function isSnapshotReason(value: string): value is SnapshotReason {
     "before-reset",
     "before-import",
     "before-restore",
+    "before-bake",
     "migration",
     "imported",
   ].includes(value);
@@ -317,7 +350,7 @@ async function importLibrary(bytes: Uint8Array): Promise<LibraryImportResult> {
     if (applicationId !== SHADER_POCKET_APPLICATION_ID) {
       throw new Error("This is not a Shader Pocket SQLite library.");
     }
-    if (version !== SHADER_POCKET_DATABASE_VERSION) {
+    if (version !== 1 && version !== SHADER_POCKET_DATABASE_VERSION) {
       throw new Error(`Shader library version ${version} is not supported.`);
     }
 

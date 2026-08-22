@@ -8,6 +8,7 @@ export type SnapshotReason =
   | "before-reset"
   | "before-import"
   | "before-restore"
+  | "before-bake"
   | "migration"
   | "imported";
 

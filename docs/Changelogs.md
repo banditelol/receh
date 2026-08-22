@@ -5,6 +5,19 @@ area and may summarize one or more related commits.
 
 ## 2026-08-22
 
+### Parsed live uniform tuner
+
+- Added typed controls for custom float, int, bool, vector, and color uniforms, with source comment
+  metadata for numeric ranges/defaults and color defaults while excluding Shader Pocket's managed
+  runtime uniforms.
+- Added a compact desktop inspector and keyboard-safe phone Tune sheet. Color controls synchronize
+  a visual picker with Hex, RGB, HSL, and optional alpha entry.
+- Applied tuning immediately to the live renderer, PNG output, and Story video without recompiling
+  or moving the code cursor; reset returns to annotated defaults and an explicit protected action
+  can bake values into GLSL constants.
+- Migrated portable projects and SQLite libraries to schema V2 so per-pass values survive reloads,
+  project exports, whole-library backups, and future React Native repository adapters.
+
 ### Configurable mobile editor appearance
 
 - Added device-local Editor configuration for syntax theme, locally bundled JetBrains Mono or IBM

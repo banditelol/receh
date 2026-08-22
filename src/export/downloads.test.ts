@@ -12,7 +12,7 @@ describe("export downloads", () => {
     const file = createProjectFile(createShaderDocument("shader source"));
 
     expect(file.filename).toBe("untitled-shader.shaderpocket.json");
-    expect(await file.blob.text()).toContain('"schemaVersion": 1');
+    expect(await file.blob.text()).toContain('"schemaVersion": 2');
   });
 
   it("exports the active GLSL pass", async () => {
