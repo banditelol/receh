@@ -528,6 +528,7 @@ export function App() {
       {settingsOpen && (
         <EditorSettingsPanel
           preferences={editorPreferences}
+          pwa={pwa}
           onChange={updateEditorPreferences}
           onClose={() => setSettingsOpen(false)}
         />

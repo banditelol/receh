@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   DEFAULT_EDITOR_PREFERENCES,
   EDITOR_FONT_STACKS,
@@ -8,9 +8,13 @@ import {
   type EditorThemeId,
 } from "../editor/editorPreferences.ts";
 import { EDITOR_THEMES, getEditorTheme } from "../editor/editorThemes.ts";
+import type { usePwa } from "../pwa/usePwa.ts";
+
+type PwaState = ReturnType<typeof usePwa>;
 
 type EditorSettingsPanelProps = {
   preferences: EditorPreferences;
+  pwa: PwaState;
   onChange: (patch: Partial<EditorPreferences>) => void;
   onClose: () => void;
 };
@@ -27,8 +31,14 @@ const LINE_HEIGHT_OPTIONS: readonly { value: EditorLineHeight; label: string }[]
   { value: 1.65, label: "Relaxed" },
 ];
 
-export function EditorSettingsPanel({ preferences, onChange, onClose }: EditorSettingsPanelProps) {
+export function EditorSettingsPanel({
+  preferences,
+  pwa,
+  onChange,
+  onClose,
+}: EditorSettingsPanelProps) {
   const theme = getEditorTheme(preferences.theme);
+  const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -37,6 +47,15 @@ export function EditorSettingsPanel({ preferences, onChange, onClose }: EditorSe
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
+
+  const installApp = async () => {
+    setInstalling(true);
+    try {
+      await pwa.install();
+    } finally {
+      setInstalling(false);
+    }
+  };
 
   return (
     <div className="settings-backdrop" role="presentation" onMouseDown={onClose}>
@@ -61,6 +80,40 @@ export function EditorSettingsPanel({ preferences, onChange, onClose }: EditorSe
         <p className="settings-intro">
           These preferences stay on this device and do not travel inside project or SQLite backups.
         </p>
+
+        <section className="settings-install" aria-labelledby="settings-install-title">
+          <span className="settings-install-mark" aria-hidden="true">
+            ƒ
+          </span>
+          <span className="settings-install-copy">
+            <strong id="settings-install-title">
+              {pwa.installed ? "Receh is installed" : "Install receh as an app"}
+            </strong>
+            <small>
+              {pwa.installed
+                ? "This device is already using the standalone app."
+                : pwa.manualIosInstall
+                  ? "Open Share and choose Add to Home Screen. These steps stay available here."
+                  : pwa.canInstall
+                    ? "Open faster and keep editing offline. This option stays here after you dismiss the startup reminder."
+                    : "Use your browser menu’s Install app or Add to Home Screen action. This reminder stays available here."}
+            </small>
+          </span>
+          {pwa.canInstall ? (
+            <button
+              className="settings-install-button"
+              type="button"
+              disabled={installing}
+              onClick={() => void installApp()}
+            >
+              {installing ? "Opening…" : "Install app"}
+            </button>
+          ) : (
+            <span className="settings-install-state">
+              {pwa.installed ? "Installed" : pwa.manualIosInstall ? "Share menu" : "Browser menu"}
+            </span>
+          )}
+        </section>
 
         <div
           className="editor-setting-preview"

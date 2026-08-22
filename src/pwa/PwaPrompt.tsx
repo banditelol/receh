@@ -89,11 +89,16 @@ export function PwaPrompt({ pwa }: PwaPromptProps) {
         <strong>Install receh</strong>
         <small>
           {pwa.manualIosInstall
-            ? "In Share, choose Add to Home Screen."
-            : "Open faster and keep editing offline."}
+            ? "In Share, choose Add to Home Screen. You can find these steps later in Config."
+            : "Open faster and keep editing offline. Choose Not now to install later from Config."}
         </small>
       </span>
-      <button className="pwa-prompt-secondary" type="button" onClick={dismissInstallPrompt}>
+      <button
+        className="pwa-prompt-secondary"
+        type="button"
+        title="Dismiss — you can install later from Config"
+        onClick={dismissInstallPrompt}
+      >
         Not now
       </button>
       {pwa.canInstall && (

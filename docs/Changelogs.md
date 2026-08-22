@@ -5,6 +5,13 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Persistent PWA installation
+
+- Added a permanent install section to Config so the native install action or iOS Add to Home
+  Screen guidance remains available after the startup prompt is dismissed.
+- Made the startup dismissal explain where installation can be found later and kept its **Not now**
+  action visible on phone layouts.
+
 ### Tuning, playback, and learning flow
 
 - Replaced the hidden native color input with a responsive `react-colorful` saturation, hue, and
