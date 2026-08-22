@@ -5,6 +5,15 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### GitHub Pages delivery
+
+- Added a VitePlus-based GitHub Actions workflow that checks, tests, builds, and deploys `main` to
+  the repository's GitHub Pages environment.
+- Made browser assets, the web manifest, offline shell, and service-worker registration aware of
+  the `/receh/` project path while preserving root-based local development.
+- Added service-worker isolation headers and a controlled first-install reload so SQLite OPFS
+  persistence remains available on a static GitHub Pages host.
+
 ### Portable share links
 
 - Added versioned, URL-safe `code` query parameters that compress the active GLSL source directly

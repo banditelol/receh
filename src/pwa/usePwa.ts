@@ -28,6 +28,7 @@ export function usePwa() {
   const [updateReady, setUpdateReady] = useState(false);
   const waitingWorkerRef = useRef<ServiceWorker | null>(null);
   const reloadForUpdateRef = useRef(false);
+  const reloadForIsolationRef = useRef(false);
 
   useEffect(() => {
     const handleOnline = () => setOnline(true);
@@ -71,7 +72,11 @@ export function usePwa() {
     };
     const register = async () => {
       try {
-        registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+        reloadForIsolationRef.current =
+          !window.crossOriginIsolated && navigator.serviceWorker.controller === null;
+        registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, {
+          scope: import.meta.env.BASE_URL,
+        });
         markWaiting(registration.waiting);
         registration.addEventListener("updatefound", () =>
           trackInstalling(registration?.installing ?? null),
@@ -86,7 +91,7 @@ export function usePwa() {
         void registration?.update().catch(() => undefined);
     };
     const handleControllerChange = () => {
-      if (reloadForUpdateRef.current) window.location.reload();
+      if (reloadForUpdateRef.current || reloadForIsolationRef.current) window.location.reload();
     };
 
     navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);

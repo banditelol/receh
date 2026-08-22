@@ -3,6 +3,7 @@ import { defineConfig } from "vite-plus";
 import { pwaServiceWorkerPlugin } from "./build/pwaServiceWorker.ts";
 
 export default defineConfig({
+  base: process.env.GITHUB_PAGES === "true" ? "/receh/" : "/",
   plugins: [react(), pwaServiceWorkerPlugin()],
   optimizeDeps: {
     exclude: ["@sqlite.org/sqlite-wasm"],

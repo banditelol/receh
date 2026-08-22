@@ -10,12 +10,22 @@ describe("generated PWA service worker", () => {
     expect(source).toContain('"/assets/application-123.js"');
     expect(source).toContain('"/assets/sqlite-worker-123.js"');
     expect(source).toContain('"/manifest.webmanifest"');
-    expect(source).toContain('caches.match("/index.html")');
+    expect(source).toContain('const INDEX_URL = "/index.html"');
+    expect(source).toContain("caches.match(INDEX_URL)");
   });
 
   it("waits for explicit approval before activating an update", () => {
     const source = createServiceWorkerSource([]);
     expect(source).toContain('event.data?.type === "SKIP_WAITING"');
     expect(source).toContain("if (!self.registration.active) await self.skipWaiting()");
+  });
+
+  it("scopes cached assets to the GitHub Pages base path", () => {
+    const source = createServiceWorkerSource(["assets/application-123.js"], "/receh/");
+
+    expect(source).toContain('"/receh/assets/application-123.js"');
+    expect(source).toContain('const INDEX_URL = "/receh/index.html"');
+    expect(source).toContain('headers.set("Cross-Origin-Opener-Policy", "same-origin")');
+    expect(source).toContain('headers.set("Cross-Origin-Embedder-Policy", "require-corp")');
   });
 });
