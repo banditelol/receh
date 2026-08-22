@@ -1,7 +1,7 @@
 # receh V1 product plan
 
 Status: active  
-Last updated: 2026-08-22
+Last updated: 2026-08-23
 
 ## V1 outcome
 
@@ -44,7 +44,8 @@ unless real-device validation uncovers a blocking need.
 - Per-pass uniform values update the live preview and media exports without recompiling, persist in
   portable projects and SQLite backups, reset to source annotations, and can be explicitly baked
   into GLSL constants after a recovery snapshot.
-- Debounced automatic compilation plus explicit Run.
+- Debounced automatic compilation plus explicit `Cmd`/`Ctrl` + `Enter`, with preview playback and
+  time scrubbing kept separate from compilation.
 - Parsed compiler diagnostics that navigate back to the affected source line.
 - Last-good-program rendering when a new shader fails, context-loss messaging, pause/resume, reset,
   pointer interaction, and a device-pixel-ratio cap.
@@ -82,7 +83,7 @@ unless real-device validation uncovers a blocking need.
 ### Current quality baseline
 
 - Formatting, linting, and strict TypeScript checks pass.
-- Forty-six unit tests cover diagnostics, document migration/update, import validation, storage,
+- Fifty-four unit tests cover diagnostics, document migration/update, import validation, storage,
   snapshot hashing, downloads, Story timeline calculations, editor preference repair, GLSL catalog
   search, source-symbol/reference context, uniform parsing/baking, synchronized color conversion,
   storage-pressure classification, and service-worker generation.
@@ -107,6 +108,20 @@ unless real-device validation uncovers a blocking need.
 | Accounts and cloud publishing      | Deferred          | Post-V1                                             |
 | WebGPU and alternate languages     | Deferred          | Post-V1                                             |
 | Community, tutorials, marketplace  | Deferred          | Post-V1                                             |
+
+## Product TODO
+
+- [ ] **Extract reusable GLSL functions into a separate file-like view.** Add a Common or Functions
+      editor alongside the active fragment pass, then compose that source into each shader without
+      forcing authors to duplicate helpers.
+- [ ] **Accept custom buffers and texture/data inputs.** This is related to, but not the same as,
+      multipass rendering: multipass creates intermediate framebuffer textures from earlier shader
+      passes, while custom inputs provide external or user-authored data. Reuse the same texture
+      binding, validation, lifetime, and export boundaries where the two capabilities overlap.
+- [ ] **Add optional filesystem-backed local project management.** The browser library already
+      stores multiple shaders in SQLite/OPFS; add a user-selected workspace directory for explicit
+      files, durable persistence, and editing or backup outside receh where the File System Access
+      API is available.
 
 ## Recommended next phase
 
