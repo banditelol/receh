@@ -265,6 +265,9 @@ importers:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
     devDependencies:
+      '@openai/sites-vite-plugin':
+        specifier: ^0.2.0
+        version: 0.2.0(@voidzero-dev/vite-plus-core@0.2.9(typescript@7.0.2))
       '@playwright/cli':
         specifier: ^0.1.18
         version: 0.1.18
@@ -351,6 +354,12 @@ packages:
 
   '@marijn/find-cluster-break@1.0.3':
     resolution: {integrity: sha512-FY+MKLBoTsLNJF/eLWaOsXGdz6uh3Iu1axjPf6TUq92IYumcTcXWHoS747JARLkcdlJ/Waiaxc5wQfFO8jC6NA==}
+
+  '@openai/sites-vite-plugin@0.2.0':
+    resolution: {integrity: sha512-4ThLMW9eaf2gd+SqBwHmqBONKBAbQ2BuOFev7mHq7Y2W5mm/rfVJOSjcgQIsY2PqdXxXNZ4Yd0+s0DlSUYehag==}
+    engines: {node: '>=22.13.0'}
+    peerDependencies:
+      vite: ^8.0.0
 
   '@oxc-project/runtime@0.143.0':
     resolution: {integrity: sha512-zIuXUf+YGIgsPk0xlQmzTY8NCSc8jE/pSfDodlQ9H3EGZABmr+AtIjXRrnpQAXuXzhDSNqZz9cuhud8hDDLvpg==}
@@ -1564,6 +1573,10 @@ snapshots:
       '@lezer/common': 1.5.2
 
   '@marijn/find-cluster-break@1.0.3': {}
+
+  '@openai/sites-vite-plugin@0.2.0(@voidzero-dev/vite-plus-core@0.2.9(typescript@7.0.2))':
+    dependencies:
+      vite: '@voidzero-dev/vite-plus-core@0.2.9(typescript@7.0.2)'
 
   '@oxc-project/runtime@0.143.0': {}
 

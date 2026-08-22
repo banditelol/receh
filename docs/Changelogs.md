@@ -5,6 +5,13 @@ area and may summarize one or more related commits.
 
 ## 2026-08-22
 
+### Production hosting
+
+- Added Sites deployment metadata and a minimal static worker that serves the Vite application with
+  single-page navigation fallback and the cross-origin isolation headers required by SQLite OPFS.
+- Kept the generated PWA service worker and local-first data model unchanged for hosted use; each
+  browser continues to own its projects and can move them through SQLite backups.
+
 ### Installable offline application
 
 - Added a production web manifest, adaptive/maskable and Apple application icons, browser install
