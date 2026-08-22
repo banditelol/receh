@@ -13,16 +13,19 @@ type ShaderCanvasProps = {
   source: string;
   compileRequest: number;
   paused: boolean;
+  seekRequest: { time: number; request: number };
   uniforms: RuntimeUniform[];
   onCompileState: (state: CompileState) => void;
+  onPlaybackTimeChange: (time: number) => void;
 };
 
 type Runtime = {
   gl: WebGL2RenderingContext;
   program: WebGLProgram | null;
   buffer: WebGLBuffer;
-  startedAt: number;
+  time: number;
   lastFrameAt: number;
+  lastTimeReportAt: number;
   frame: number;
   mouse: [number, number];
   drag: [number, number];
@@ -47,8 +50,10 @@ export function ShaderCanvas({
   source,
   compileRequest,
   paused,
+  seekRequest,
   uniforms,
   onCompileState,
+  onPlaybackTimeChange,
 }: ShaderCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runtimeRef = useRef<Runtime | null>(null);
@@ -56,12 +61,14 @@ export function ShaderCanvas({
   const pausedRef = useRef(paused);
   const uniformsRef = useRef(uniforms);
   const onCompileStateRef = useRef(onCompileState);
+  const onPlaybackTimeChangeRef = useRef(onPlaybackTimeChange);
   const [contextLost, setContextLost] = useState(false);
 
   sourceRef.current = source;
   pausedRef.current = paused;
   uniformsRef.current = uniforms;
   onCompileStateRef.current = onCompileState;
+  onPlaybackTimeChangeRef.current = onPlaybackTimeChange;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -88,8 +95,9 @@ export function ShaderCanvas({
       gl,
       program: null,
       buffer,
-      startedAt: performance.now(),
+      time: 0,
       lastFrameAt: performance.now(),
+      lastTimeReportAt: 0,
       frame: 0,
       mouse: [0, 0],
       drag: [0, 0],
@@ -113,17 +121,25 @@ export function ShaderCanvas({
     let animationFrame = 0;
     const render = (now: number) => {
       const runtime = runtimeRef.current;
-      if (runtime && runtime.program && !pausedRef.current) {
-        resizeCanvas(canvas, runtime.gl);
-        renderShaderFrame(runtime.gl, runtime.program, runtime.buffer, {
-          time: (now - runtime.startedAt) / 1000,
-          timeDelta: Math.max(0, (now - runtime.lastFrameAt) / 1000),
-          frame: runtime.frame++,
-          mouse: runtime.mouse,
-          drag: runtime.drag,
-          scroll: runtime.scroll,
-          uniforms: uniformsRef.current,
-        });
+      if (runtime) {
+        const timeDelta = Math.max(0, (now - runtime.lastFrameAt) / 1000);
+        if (runtime.program && !pausedRef.current) {
+          runtime.time += timeDelta;
+          resizeCanvas(canvas, runtime.gl);
+          renderShaderFrame(runtime.gl, runtime.program, runtime.buffer, {
+            time: runtime.time,
+            timeDelta,
+            frame: runtime.frame++,
+            mouse: runtime.mouse,
+            drag: runtime.drag,
+            scroll: runtime.scroll,
+            uniforms: uniformsRef.current,
+          });
+          if (now - runtime.lastTimeReportAt >= 100) {
+            runtime.lastTimeReportAt = now;
+            onPlaybackTimeChangeRef.current(runtime.time);
+          }
+        }
         runtime.lastFrameAt = now;
       }
       animationFrame = requestAnimationFrame(render);
@@ -158,12 +174,36 @@ export function ShaderCanvas({
 
     const previous = runtime.program;
     runtime.program = result.program;
-    runtime.startedAt = performance.now();
-    runtime.lastFrameAt = runtime.startedAt;
+    runtime.time = 0;
+    runtime.lastFrameAt = performance.now();
+    runtime.lastTimeReportAt = 0;
     runtime.frame = 0;
     if (previous) runtime.gl.deleteProgram(previous);
+    onPlaybackTimeChangeRef.current(0);
     onCompileStateRef.current({ status: "ready", diagnostics: [], message: "Live" });
   }, [compileRequest]);
+
+  useEffect(() => {
+    const runtime = runtimeRef.current;
+    const canvas = canvasRef.current;
+    if (!runtime || !canvas) return;
+
+    runtime.time = Math.max(0, seekRequest.time);
+    runtime.lastFrameAt = performance.now();
+    if (runtime.program) {
+      resizeCanvas(canvas, runtime.gl);
+      renderShaderFrame(runtime.gl, runtime.program, runtime.buffer, {
+        time: runtime.time,
+        timeDelta: 0,
+        frame: runtime.frame++,
+        mouse: runtime.mouse,
+        drag: runtime.drag,
+        scroll: runtime.scroll,
+        uniforms: uniformsRef.current,
+      });
+    }
+    onPlaybackTimeChangeRef.current(runtime.time);
+  }, [seekRequest.request, seekRequest.time]);
 
   const updatePointer = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const runtime = runtimeRef.current;
@@ -200,9 +240,6 @@ export function ShaderCanvas({
           if (runtime) runtime.scroll += event.deltaY;
         }}
       />
-      <div className="preview-hint" aria-hidden="true">
-        drag to interact
-      </div>
       {paused && <div className="canvas-message">Paused</div>}
       {contextLost && <div className="canvas-message">Graphics context lost — restoring…</div>}
     </div>

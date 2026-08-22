@@ -5,6 +5,19 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Tuning, playback, and learning flow
+
+- Replaced the hidden native color input with a responsive `react-colorful` saturation, hue, and
+  alpha experience while retaining Hex and optional advanced RGB/HSL channel editing.
+- Turned the preview footer into a clear transport with separated Tune, Play/Pause, and Fullscreen
+  buttons, an explicit uniform-count badge, and a seekable shader-time timeline.
+- Removed the redundant top Run action and the preview's drag instruction pill; automatic compile
+  and the editor's explicit keyboard compile shortcut remain available.
+- Added an in-app uniform guide covering runtime values, annotated custom controls, and the exact
+  source transformation and recovery behavior of Bake into GLSL.
+- Recorded planned Common/function source, custom input buffer, and filesystem-workspace work,
+  including how custom inputs differ from multipass framebuffers.
+
 ### Fullscreen preview
 
 - Added a preview-toolbar mode that expands the live shader across the entire viewport, uses the

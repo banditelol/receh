@@ -35,6 +35,12 @@ import type { ShaderUniformValue } from "./uniforms/uniformTypes.ts";
 
 type MobilePane = "preview" | "code";
 type CompileStatus = "compiling" | "ready" | "error" | "unsupported";
+const DEFAULT_PLAYBACK_RANGE = 60;
+
+function formatPlaybackTime(time: number) {
+  const seconds = Math.max(0, Math.floor(time));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
 
 export function App() {
   useVisualViewport();
@@ -65,6 +71,9 @@ export function App() {
   const [diagnostics, setDiagnostics] = useState<ShaderDiagnostic[]>([]);
   const [mobilePane, setMobilePane] = useState<MobilePane>("preview");
   const [paused, setPaused] = useState(false);
+  const [playbackTime, setPlaybackTime] = useState(0);
+  const [playbackRange, setPlaybackRange] = useState(DEFAULT_PLAYBACK_RANGE);
+  const [playbackSeekRequest, setPlaybackSeekRequest] = useState({ time: 0, request: 0 });
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -72,11 +81,15 @@ export function App() {
   const [tunerOpen, setTunerOpen] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
   const [docsInitialName, setDocsInitialName] = useState<string>();
+  const [docsInitialSection, setDocsInitialSection] = useState<"functions" | "uniforms">(
+    "functions",
+  );
   const [cursorReference, setCursorReference] = useState<GlslReferenceEntry | null>(null);
   const [searchRequest, setSearchRequest] = useState(0);
   const [shareImportNotice, setShareImportNotice] = useState("");
   const shareImportStartedRef = useRef(false);
   const previewPaneRef = useRef<HTMLElement>(null);
+  const resumeAfterScrubRef = useRef(false);
   const [editorPreferences, setEditorPreferences] = useState(() =>
     loadEditorPreferences(window.localStorage),
   );
@@ -152,6 +165,13 @@ export function App() {
     [],
   );
 
+  const handlePlaybackTimeChange = useCallback((time: number) => {
+    setPlaybackTime(time);
+    setPlaybackRange((current) =>
+      time > current ? Math.ceil(time / DEFAULT_PLAYBACK_RANGE) * DEFAULT_PLAYBACK_RANGE : current,
+    );
+  }, []);
+
   const statusText = useMemo(() => {
     if (status === "error") {
       const count = diagnostics.length;
@@ -180,6 +200,22 @@ export function App() {
 
   const updateSource = (nextSource: string) => {
     setDocument((current) => updateActivePassSource(current, nextSource));
+  };
+
+  const seekPlayback = (time: number) => {
+    const nextTime = Math.max(0, Math.min(time, playbackRange));
+    setPlaybackTime(nextTime);
+    setPlaybackSeekRequest((current) => ({ time: nextTime, request: current.request + 1 }));
+  };
+
+  const beginPlaybackScrub = () => {
+    resumeAfterScrubRef.current = !paused;
+    setPaused(true);
+  };
+
+  const endPlaybackScrub = () => {
+    if (resumeAfterScrubRef.current) setPaused(false);
+    resumeAfterScrubRef.current = false;
   };
 
   const togglePreviewFullscreen = async () => {
@@ -224,8 +260,9 @@ export function App() {
     }));
   };
 
-  const openDocs = (name?: string) => {
+  const openDocs = (name?: string, section: "functions" | "uniforms" = "functions") => {
     setDocsInitialName(name);
+    setDocsInitialSection(section);
     setDocsOpen(true);
   };
 
@@ -273,13 +310,6 @@ export function App() {
           <button className="config-button" type="button" onClick={() => setSettingsOpen(true)}>
             Config
           </button>
-          <button
-            className="run-button"
-            type="button"
-            onClick={() => setCompileRequest((request) => request + 1)}
-          >
-            Run <span aria-hidden="true">↵</span>
-          </button>
         </div>
       </header>
 
@@ -293,33 +323,58 @@ export function App() {
             source={source}
             compileRequest={compileRequest}
             paused={paused}
+            seekRequest={playbackSeekRequest}
             uniforms={runtimeUniforms}
             onCompileState={handleCompileState}
+            onPlaybackTimeChange={handlePlaybackTimeChange}
           />
           <div className="preview-toolbar">
             <span className={`status status--${status}`}>
               <span className="status-dot" aria-hidden="true" />
               {statusText}
             </span>
+            <label className="preview-time-control">
+              <span className="preview-time-current">{formatPlaybackTime(playbackTime)}</span>
+              <input
+                type="range"
+                min={0}
+                max={playbackRange}
+                step={0.01}
+                value={Math.min(playbackTime, playbackRange)}
+                onChange={(event) => seekPlayback(Number(event.target.value))}
+                onPointerDown={beginPlaybackScrub}
+                onPointerUp={endPlaybackScrub}
+                onPointerCancel={endPlaybackScrub}
+                aria-label={`Shader playback time, ${formatPlaybackTime(playbackTime)}`}
+              />
+              <span className="preview-time-end">{formatPlaybackTime(playbackRange)}</span>
+            </label>
             <span className="preview-toolbar-actions">
               <button
-                className="icon-button"
+                className="preview-control"
                 type="button"
                 onClick={() => setTunerOpen(true)}
                 aria-label={`Tune ${uniformDefinitions.length} custom shader uniforms`}
               >
-                Tune{uniformDefinitions.length > 0 ? ` ${uniformDefinitions.length}` : ""}
+                <span aria-hidden="true">Tune</span>
+                <span className="uniform-count" aria-hidden="true">
+                  {uniformDefinitions.length}
+                </span>
               </button>
               <button
-                className="icon-button"
+                className="preview-control"
                 type="button"
                 onClick={() => setPaused((value) => !value)}
                 aria-label={paused ? "Resume animation" : "Pause animation"}
+                aria-pressed={!paused}
               >
+                <span className="preview-control-icon" aria-hidden="true">
+                  {paused ? "▶" : "Ⅱ"}
+                </span>
                 {paused ? "Play" : "Pause"}
               </button>
               <button
-                className="icon-button"
+                className="preview-control"
                 type="button"
                 onClick={() => void togglePreviewFullscreen()}
                 aria-label={
@@ -327,7 +382,10 @@ export function App() {
                 }
                 aria-pressed={previewFullscreen}
               >
-                {previewFullscreen ? "Exit" : "Full"}
+                <span className="preview-control-icon" aria-hidden="true">
+                  {previewFullscreen ? "↙" : "⛶"}
+                </span>
+                {previewFullscreen ? "Exit" : "Fullscreen"}
               </button>
             </span>
           </div>
@@ -476,7 +534,11 @@ export function App() {
       )}
 
       {docsOpen && (
-        <GlslDocsPanel initialName={docsInitialName} onClose={() => setDocsOpen(false)} />
+        <GlslDocsPanel
+          initialName={docsInitialName}
+          initialSection={docsInitialSection}
+          onClose={() => setDocsOpen(false)}
+        />
       )}
 
       {tunerOpen && (
@@ -486,6 +548,10 @@ export function App() {
           onChange={updateUniformValue}
           onReset={() => setDocument(resetActivePassUniformValues)}
           onBake={bakeUniformValues}
+          onOpenGuide={() => {
+            setTunerOpen(false);
+            openDocs(undefined, "uniforms");
+          }}
           onClose={() => setTunerOpen(false)}
         />
       )}

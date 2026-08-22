@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { RgbColorPicker, RgbaColorPicker } from "react-colorful";
 import { clamp, formatHexColor, hslToRgb, parseHexColor, rgbToHsl } from "./color.ts";
 import { resolveUniformValue, UNIFORM_COMPONENT_LABELS } from "./uniformParser.ts";
 import type {
@@ -13,6 +14,7 @@ type UniformTunerPanelProps = {
   onChange: (name: string, value: ShaderUniformValue) => void;
   onReset: () => void;
   onBake: () => Promise<void>;
+  onOpenGuide: () => void;
   onClose: () => void;
 };
 
@@ -137,6 +139,11 @@ function ColorControl({ definition, value, onChange }: UniformControlProps) {
   ] as const;
   const includeAlpha = definition.components === 4;
   const formattedHex = formatHexColor(rgba, includeAlpha);
+  const rgbColor = {
+    r: Math.round(rgba[0] * 255),
+    g: Math.round(rgba[1] * 255),
+    b: Math.round(rgba[2] * 255),
+  };
   const [hex, setHex] = useState(formattedHex);
 
   useEffect(() => setHex(formattedHex), [formattedHex]);
@@ -156,19 +163,29 @@ function ColorControl({ definition, value, onChange }: UniformControlProps) {
 
   return (
     <div className="uniform-color-control">
-      <div className="uniform-color-primary">
-        <label className="uniform-color-swatch" style={{ background: formattedHex }}>
-          <input
-            type="color"
-            value={formatHexColor(rgba)}
-            onChange={(event) => {
-              const parsed = parseHexColor(event.target.value);
-              if (parsed) updateRgba([parsed[0], parsed[1], parsed[2], rgba[3]]);
-            }}
-            aria-label={`${definition.label} visual color picker`}
+      <div className="uniform-visual-picker">
+        {includeAlpha ? (
+          <RgbaColorPicker
+            color={{ ...rgbColor, a: rgba[3] }}
+            onChange={(next) => updateRgba([next.r / 255, next.g / 255, next.b / 255, next.a])}
           />
+        ) : (
+          <RgbColorPicker
+            color={rgbColor}
+            onChange={(next) => updateRgba([next.r / 255, next.g / 255, next.b / 255])}
+          />
+        )}
+      </div>
+
+      <div className="uniform-color-primary">
+        <span
+          className="uniform-color-swatch"
+          style={{ background: formattedHex }}
+          role="img"
+          aria-label={`${definition.label} is ${formattedHex}`}
+        >
           <span aria-hidden="true" />
-        </label>
+        </span>
         <label className="uniform-hex-field">
           <span>Hex</span>
           <input
@@ -180,6 +197,13 @@ function ColorControl({ definition, value, onChange }: UniformControlProps) {
             aria-label={`${definition.label} hexadecimal color`}
           />
         </label>
+      </div>
+
+      <details className="uniform-color-advanced">
+        <summary>
+          <span>Advanced channel values</span>
+          <small>{mode.toUpperCase()}</small>
+        </summary>
         <div className="uniform-color-mode" aria-label="Color input mode">
           <button type="button" aria-pressed={mode === "rgb"} onClick={() => setMode("rgb")}>
             RGB
@@ -188,64 +212,63 @@ function ColorControl({ definition, value, onChange }: UniformControlProps) {
             HSL
           </button>
         </div>
-      </div>
-
-      <div className="uniform-color-channels">
-        {(mode === "rgb"
-          ? ([
-              ["R", Math.round(rgba[0] * 255), 255],
-              ["G", Math.round(rgba[1] * 255), 255],
-              ["B", Math.round(rgba[2] * 255), 255],
-            ] as const)
-          : ([
-              ["H", Math.round(hsl[0]), 360],
-              ["S", Math.round(hsl[1] * 100), 100],
-              ["L", Math.round(hsl[2] * 100), 100],
-            ] as const)
-        ).map(([label, channel, maximum], index) => (
-          <label key={label}>
-            <span>{label}</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              max={maximum}
-              value={channel}
-              onChange={(event) => {
-                const next = clamp(Number(event.target.value), 0, maximum);
-                if (mode === "rgb") {
-                  const nextRgba = [...rgba];
-                  nextRgba[index] = next / 255;
-                  updateRgba(nextRgba);
-                } else {
-                  const nextHsl = [...hsl];
-                  nextHsl[index] = index === 0 ? next : next / 100;
-                  updateRgba(hslToRgb(nextHsl));
-                }
-              }}
-              aria-label={`${definition.label} ${label} channel`}
-            />
-          </label>
-        ))}
-        {includeAlpha && (
-          <label>
-            <span>A</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              max={100}
-              value={Math.round(rgba[3] * 100)}
-              onChange={(event) => {
-                const next = [...rgba];
-                next[3] = clamp(Number(event.target.value), 0, 100) / 100;
-                updateRgba(next);
-              }}
-              aria-label={`${definition.label} alpha channel`}
-            />
-          </label>
-        )}
-      </div>
+        <div className="uniform-color-channels">
+          {(mode === "rgb"
+            ? ([
+                ["R", Math.round(rgba[0] * 255), 255],
+                ["G", Math.round(rgba[1] * 255), 255],
+                ["B", Math.round(rgba[2] * 255), 255],
+              ] as const)
+            : ([
+                ["H", Math.round(hsl[0]), 360],
+                ["S", Math.round(hsl[1] * 100), 100],
+                ["L", Math.round(hsl[2] * 100), 100],
+              ] as const)
+          ).map(([label, channel, maximum], index) => (
+            <label key={label}>
+              <span>{label}</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                max={maximum}
+                value={channel}
+                onChange={(event) => {
+                  const next = clamp(Number(event.target.value), 0, maximum);
+                  if (mode === "rgb") {
+                    const nextRgba = [...rgba];
+                    nextRgba[index] = next / 255;
+                    updateRgba(nextRgba);
+                  } else {
+                    const nextHsl = [...hsl];
+                    nextHsl[index] = index === 0 ? next : next / 100;
+                    updateRgba(hslToRgb(nextHsl));
+                  }
+                }}
+                aria-label={`${definition.label} ${label} channel`}
+              />
+            </label>
+          ))}
+          {includeAlpha && (
+            <label>
+              <span>A</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                max={100}
+                value={Math.round(rgba[3] * 100)}
+                onChange={(event) => {
+                  const next = [...rgba];
+                  next[3] = clamp(Number(event.target.value), 0, 100) / 100;
+                  updateRgba(next);
+                }}
+                aria-label={`${definition.label} alpha channel`}
+              />
+            </label>
+          )}
+        </div>
+      </details>
     </div>
   );
 }
@@ -278,6 +301,7 @@ export function UniformTunerPanel({
   onChange,
   onReset,
   onBake,
+  onOpenGuide,
   onClose,
 }: UniformTunerPanelProps) {
   const [baking, setBaking] = useState(false);
@@ -327,10 +351,15 @@ export function UniformTunerPanel({
           </button>
         </div>
 
-        <p className="tuner-intro">
-          Controls update the preview and exports without recompiling. Values are saved with this
-          pass in your portable project.
-        </p>
+        <div className="tuner-intro">
+          <p>
+            Controls update the preview and exports without recompiling. Values are saved with this
+            pass in your portable project.
+          </p>
+          <button type="button" className="tuner-guide-button" onClick={onOpenGuide}>
+            Uniform guide
+          </button>
+        </div>
 
         <div className="tuner-controls">
           {definitions.length === 0 ? (
@@ -362,6 +391,14 @@ export function UniformTunerPanel({
               );
             })
           )}
+        </div>
+
+        <div className="tuner-bake-note">
+          <strong>Baking freezes these controls into source.</strong>
+          <span>
+            Receh creates a recovery snapshot, replaces each custom uniform with a GLSL constant,
+            and removes it from Tune.
+          </span>
         </div>
 
         <footer className="tuner-footer">
