@@ -7,9 +7,34 @@ type PwaPromptProps = {
   pwa: PwaState;
 };
 
+export const INSTALL_PROMPT_DISMISSED_KEY = "receh.install-prompt-dismissed.v1";
+
+export function loadInstallPromptDismissed(storage: Pick<Storage, "getItem">) {
+  try {
+    return storage.getItem(INSTALL_PROMPT_DISMISSED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function saveInstallPromptDismissed(storage: Pick<Storage, "setItem">) {
+  try {
+    storage.setItem(INSTALL_PROMPT_DISMISSED_KEY, "true");
+  } catch {
+    // The prompt still dismisses for this session when browser storage is unavailable.
+  }
+}
+
 export function PwaPrompt({ pwa }: PwaPromptProps) {
-  const [installDismissed, setInstallDismissed] = useState(false);
+  const [installDismissed, setInstallDismissed] = useState(() =>
+    loadInstallPromptDismissed(window.localStorage),
+  );
   const [updateDismissed, setUpdateDismissed] = useState(false);
+
+  const dismissInstallPrompt = () => {
+    setInstallDismissed(true);
+    saveInstallPromptDismissed(window.localStorage);
+  };
 
   if (pwa.updateReady && !updateDismissed) {
     return (
@@ -68,11 +93,7 @@ export function PwaPrompt({ pwa }: PwaPromptProps) {
             : "Open faster and keep editing offline."}
         </small>
       </span>
-      <button
-        className="pwa-prompt-secondary"
-        type="button"
-        onClick={() => setInstallDismissed(true)}
-      >
+      <button className="pwa-prompt-secondary" type="button" onClick={dismissInstallPrompt}>
         Not now
       </button>
       {pwa.canInstall && (

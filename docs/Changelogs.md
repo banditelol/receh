@@ -5,6 +5,12 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Install prompt dismissal
+
+- Persisted the install prompt's **Not now** choice locally so it stays dismissed across the
+  service worker's first-install reload and future visits, while retaining a session-only fallback
+  when browser storage is blocked.
+
 ### GitHub Pages delivery
 
 - Added a manually triggered VitePlus-based GitHub Actions workflow that checks, tests, builds, and
