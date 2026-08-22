@@ -6,6 +6,9 @@ import { sitesStaticWorkerPlugin } from "./build/sitesStaticWorker.ts";
 
 export default defineConfig({
   plugins: [react(), sites(), pwaServiceWorkerPlugin(), sitesStaticWorkerPlugin()],
+  build: {
+    outDir: "dist/client",
+  },
   optimizeDeps: {
     exclude: ["@sqlite.org/sqlite-wasm"],
   },
