@@ -3,6 +3,7 @@ import { type ShaderDocument } from "../document/shaderDocument.ts";
 import type { RuntimeUniform } from "../uniforms/uniformTypes.ts";
 import { createProjectFile, createSourceFile, downloadBlob, safeFilename } from "./downloads.ts";
 import { renderShaderPng } from "./renderExport.ts";
+import { createShareUrl } from "../share/shareLink.ts";
 import {
   clampStoryDuration,
   getStoryVideoCapability,
@@ -26,6 +27,8 @@ export function ExportPanel({ document, source, canRender, uniforms, onClose }: 
   const [duration, setDuration] = useState(15);
   const [progress, setProgress] = useState(0);
   const [storyCapability, setStoryCapability] = useState<StoryVideoCapability | null>(null);
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareStatus, setShareStatus] = useState("");
   const recorderAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -58,6 +61,27 @@ export function ExportPanel({ document, source, canRender, uniforms, onClose }: 
   const saveSource = () => {
     const file = createSourceFile(document);
     downloadBlob(file.blob, file.filename);
+  };
+
+  const shareSource = async () => {
+    setError("");
+    setShareStatus("");
+    try {
+      const url = await createShareUrl(source);
+      setShareUrl(url);
+      if (navigator.share) {
+        await navigator.share({ title: `${document.title} · receh`, url });
+        setShareStatus("Shared");
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        setShareStatus("Link copied");
+      } else {
+        setShareStatus("Select and copy the link below");
+      }
+    } catch (reason) {
+      if (reason instanceof DOMException && reason.name === "AbortError") return;
+      setError(reason instanceof Error ? reason.message : "The share link could not be created.");
+    }
   };
 
   const savePng = async () => {
@@ -156,6 +180,31 @@ export function ExportPanel({ document, source, canRender, uniforms, onClose }: 
               GLSL source
             </button>
           </div>
+        </div>
+
+        <div className="export-section share-section">
+          <div className="export-section-copy">
+            <strong>Share editable code</strong>
+            <span>
+              Put this shader directly in a link. Anyone with the link can read the code and add it
+              as a new local project.
+            </span>
+          </div>
+          <button className="secondary-button export-primary" type="button" onClick={shareSource}>
+            Share link
+          </button>
+          {shareUrl && (
+            <label className="share-link-field">
+              <span>{shareStatus || "Share link ready"}</span>
+              <input
+                type="text"
+                readOnly
+                value={shareUrl}
+                aria-label="Generated share link"
+                onFocus={(event) => event.currentTarget.select()}
+              />
+            </label>
+          )}
         </div>
 
         <div className="export-section">

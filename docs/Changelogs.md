@@ -3,6 +3,15 @@
 Meaningful repository changes are recorded here newest-first. Entries are grouped by logical work
 area and may summarize one or more related commits.
 
+## 2026-08-23
+
+### Portable share links
+
+- Added versioned, URL-safe `code` query parameters that compress the active GLSL source directly
+  into a link without uploading it to a server.
+- Added native mobile sharing and clipboard/manual-copy fallbacks. Opening a shared link validates
+  its size and encoding, imports it as a new local project, and preserves existing work.
+
 ## 2026-08-22
 
 ### Product naming

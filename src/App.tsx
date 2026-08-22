@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_SHADER } from "./defaultShader.ts";
 import {
   getActivePass,
@@ -25,6 +25,7 @@ import { ShaderCanvas } from "./renderer/ShaderCanvas.tsx";
 import type { ShaderDiagnostic } from "./renderer/diagnostics.ts";
 import { EditorSettingsPanel } from "./settings/EditorSettingsPanel.tsx";
 import { UniformTunerPanel } from "./uniforms/UniformTunerPanel.tsx";
+import { decodeSharedSource, removeShareCodeFromUrl } from "./share/shareLink.ts";
 import {
   bakeUniformValuesIntoSource,
   parseTunableUniforms,
@@ -47,6 +48,7 @@ export function App() {
     saveStatus,
     storageMessage,
     persistent,
+    ready,
     createSnapshot,
     refreshSnapshots,
     openProject,
@@ -71,6 +73,8 @@ export function App() {
   const [docsInitialName, setDocsInitialName] = useState<string>();
   const [cursorReference, setCursorReference] = useState<GlslReferenceEntry | null>(null);
   const [searchRequest, setSearchRequest] = useState(0);
+  const [shareImportNotice, setShareImportNotice] = useState("");
+  const shareImportStartedRef = useRef(false);
   const [editorPreferences, setEditorPreferences] = useState(() =>
     loadEditorPreferences(window.localStorage),
   );
@@ -89,6 +93,27 @@ export function App() {
   useEffect(() => {
     saveEditorPreferences(window.localStorage, editorPreferences);
   }, [editorPreferences]);
+
+  useEffect(() => {
+    if (!ready || shareImportStartedRef.current) return;
+    const payload = new URL(window.location.href).searchParams.get("code");
+    shareImportStartedRef.current = true;
+    if (!payload) return;
+
+    void decodeSharedSource(payload)
+      .then(async (sharedSource) => {
+        await importProject(
+          new File([sharedSource], "Shared shader.frag", { type: "text/plain;charset=utf-8" }),
+        );
+        window.history.replaceState(null, "", removeShareCodeFromUrl());
+        setShareImportNotice("Shared shader added to your local library.");
+      })
+      .catch((reason: unknown) => {
+        setShareImportNotice(
+          reason instanceof Error ? reason.message : "This shared shader could not be opened.",
+        );
+      });
+  }, [importProject, ready]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -409,6 +434,15 @@ export function App() {
           onBake={bakeUniformValues}
           onClose={() => setTunerOpen(false)}
         />
+      )}
+
+      {shareImportNotice && (
+        <div className="share-import-notice" role="status">
+          <span>{shareImportNotice}</span>
+          <button type="button" onClick={() => setShareImportNotice("")} aria-label="Dismiss">
+            ×
+          </button>
+        </div>
       )}
 
       <PwaPrompt pwa={pwa} />
