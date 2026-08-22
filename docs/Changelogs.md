@@ -9,7 +9,8 @@ area and may summarize one or more related commits.
 
 - Added a manually triggered VitePlus-based GitHub Actions workflow that checks, tests, builds, and
   deploys `main` once the repository is eligible for GitHub Pages. It remains manual while the
-  current GitHub plan does not support Pages for this private repository.
+  current GitHub plan does not support Pages for this private repository, and defaults to a safe
+  build-only validation unless its explicit deployment input is selected.
 - Made browser assets, the web manifest, offline shell, and service-worker registration aware of
   the `/receh/` project path while preserving root-based local development.
 - Added service-worker isolation headers and a controlled first-install reload so SQLite OPFS

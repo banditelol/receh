@@ -2,6 +2,12 @@ name: Deploy to GitHub Pages
 
 on:
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: Publish after GitHub Pages is enabled for this repository
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -35,17 +41,20 @@ jobs:
         run: vp test --run
 
       - name: Configure GitHub Pages
+        if: inputs.deploy
         uses: actions/configure-pages@v5
 
       - name: Build GitHub Pages site
         run: vp build --mode github-pages
 
       - name: Upload GitHub Pages artifact
+        if: inputs.deploy
         uses: actions/upload-pages-artifact@v4
         with:
           path: dist
 
   deploy:
+    if: inputs.deploy
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
