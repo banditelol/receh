@@ -517,14 +517,13 @@ button:focus-visible,
 
 .pass-toolbar {
   min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  position: relative;
+  display: block;
   border-bottom: 1px solid var(--line-soft);
   background: #0d0c10;
 }
 
-.pass-tabs,
-.pass-actions {
+.pass-tabs {
   min-width: 0;
   display: flex;
   align-items: stretch;
@@ -535,9 +534,7 @@ button:focus-visible,
   scrollbar-width: thin;
 }
 
-.pass-tabs button,
-.pass-actions button,
-.pass-actions select {
+.pass-tabs button {
   min-height: 43px;
   padding: 0 10px;
   border: 0;
@@ -560,6 +557,99 @@ button:focus-visible,
   text-overflow: ellipsis;
 }
 
+.pass-tab-shell {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+}
+
+.pass-tab-shell > button {
+  flex: 1 1 auto;
+}
+
+.pass-menu {
+  flex: 0 0 auto;
+}
+
+.pass-menu summary {
+  width: 34px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  border-right: 1px solid var(--line-soft);
+  color: var(--muted-strong);
+  background: rgb(255 106 54 / 9%);
+  cursor: pointer;
+  list-style: none;
+}
+
+.pass-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.pass-menu[open] summary,
+.pass-menu summary:hover,
+.pass-menu summary:focus-visible {
+  color: var(--text);
+  background: var(--panel-raised);
+}
+
+.pass-menu-popover {
+  position: fixed;
+  z-index: 28;
+  top: 102px;
+  right: 10px;
+  width: min(280px, calc(100vw - 20px));
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgb(22 20 25 / 98%);
+  box-shadow: 0 18px 55px rgb(0 0 0 / 58%);
+  backdrop-filter: blur(16px);
+}
+
+.pass-menu-popover button,
+.pass-menu-popover select {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  color: var(--muted-strong);
+  background: rgb(255 255 255 / 3%);
+  font:
+    650 10px/1 ui-monospace,
+    monospace;
+}
+
+.pass-menu-popover button:hover:not(:disabled),
+.pass-menu-popover button:focus-visible,
+.pass-menu-popover select:hover,
+.pass-menu-popover select:focus-visible {
+  color: var(--text);
+  background: var(--panel-raised);
+}
+
+.pass-menu-popover label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font:
+    650 9px/1 ui-monospace,
+    monospace;
+}
+
+.pass-menu-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.pass-menu-popover .pass-delete {
+  color: #e89a94;
+}
+
 .pass-tabs button > span {
   width: 18px;
   height: 18px;
@@ -572,11 +662,7 @@ button:focus-visible,
 }
 
 .pass-tabs button:hover,
-.pass-tabs button:focus-visible,
-.pass-actions button:hover:not(:disabled),
-.pass-actions button:focus-visible,
-.pass-actions select:hover,
-.pass-actions select:focus-visible {
+.pass-tabs button:focus-visible {
   color: var(--text);
   background: rgb(255 255 255 / 5%);
 }
@@ -595,30 +681,6 @@ button:focus-visible,
 .pass-tabs .pass-add {
   flex: 0 0 auto;
   color: var(--muted-strong);
-}
-
-.pass-actions {
-  border-left: 1px solid var(--line-soft);
-}
-
-.pass-actions select {
-  outline: 0;
-  cursor: pointer;
-}
-
-.pass-actions select:disabled {
-  cursor: default;
-  color: var(--muted);
-  opacity: 0.72;
-}
-
-.pass-actions select option {
-  color: var(--text);
-  background: #161419;
-}
-
-.pass-actions .pass-delete {
-  color: #e89a94;
 }
 
 .panel-heading {
@@ -2991,31 +3053,15 @@ button:focus-visible,
   }
 
   .code-pane {
-    grid-template-rows: 88px 52px minmax(0, 1fr);
+    grid-template-rows: 44px 52px minmax(0, 1fr);
   }
 
   .code-pane--compiler-error-open {
-    grid-template-rows: 88px 52px auto minmax(0, 1fr);
+    grid-template-rows: 44px 52px auto minmax(0, 1fr);
   }
 
   .pass-toolbar {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 44px 44px;
-  }
-
-  .pass-actions {
-    overflow-x: auto;
-    border-top: 1px solid var(--line-soft);
-    border-left: 0;
-  }
-
-  .pass-actions button {
-    min-width: 58px;
-  }
-
-  .pass-actions button[aria-label^="Move"] {
-    min-width: 44px;
-    padding: 0;
+    display: block;
   }
 
   .panel-heading {

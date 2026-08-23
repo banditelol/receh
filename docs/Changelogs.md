@@ -16,6 +16,8 @@ area and may summarize one or more related commits.
 - Clarified the pass/function hierarchy by keeping only ordered passes in the source strip and
   moving source scope, function jump/add, Find, Docs, and preview presentation into a single icon-led
   editor action row.
+- Consolidated rename, pass ordering, render resolution, and guarded deletion into an ellipsis menu
+  attached to the active pass filename, removing the persistent second control row on phones.
 
 ### Project and global function libraries
 
