@@ -196,10 +196,10 @@ export function useShaderLibrary() {
     window.localStorage.setItem(ACTIVE_PROJECT_STORAGE_KEY, nextDocument.id);
   }, [persistDocument]);
 
-  const importProject = useCallback(
-    async (file: File) => {
+  const importShaderDocument = useCallback(
+    async (documentToImport: ShaderDocument) => {
       await createSnapshot("before-import");
-      const imported = await repository.importDocument(await readProjectImport(file));
+      const imported = await repository.importDocument(documentToImport);
       documentRef.current = imported;
       setDocument(imported);
       setProjects(await repository.listProjects());
@@ -207,6 +207,11 @@ export function useShaderLibrary() {
       window.localStorage.setItem(ACTIVE_PROJECT_STORAGE_KEY, imported.id);
     },
     [createSnapshot],
+  );
+
+  const importProject = useCallback(
+    async (file: File) => importShaderDocument(await readProjectImport(file)),
+    [importShaderDocument],
   );
 
   const importLibrary = useCallback(
@@ -269,6 +274,7 @@ export function useShaderLibrary() {
     openProject,
     createProject,
     importProject,
+    importShaderDocument,
     importLibrary,
     exportLibrary,
     restoreSnapshot,

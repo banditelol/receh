@@ -83,7 +83,7 @@ unless real-device validation uncovers a blocking need.
 ### Current quality baseline
 
 - Formatting, linting, and strict TypeScript checks pass.
-- Sixty-six unit tests cover diagnostics, document migration/update, import validation, storage,
+- Sixty-eight unit tests cover diagnostics, document migration/update, import validation, storage,
   snapshot hashing, downloads, Story timeline calculations, editor preference repair, GLSL catalog
   search, source-symbol/reference context, uniform parsing/baking, synchronized color conversion,
   storage-pressure classification, and service-worker generation.
@@ -100,7 +100,7 @@ unless real-device validation uncovers a blocking need.
 | Portable local backup              | Prepared          | Harden real-device import/share flows               |
 | Source diagnostics and completions | Prepared baseline | Add revision-safe async compile scheduling          |
 | PNG and Story MP4 export           | Prepared          | Test real-device encoding, memory, and cancellation |
-| Shareable shader URL               | Prepared baseline | Add title/pass envelope and physical-device checks  |
+| Shareable shader URL               | Prepared          | Harden physical-device deep links                   |
 | Named snapshots/history            | Prepared          | Harden backup/restore on real phones                |
 | Parsed uniform tuner               | Prepared          | Harden on real phones                               |
 | Ordered fragment passes            | Not started       | Required for V1                                     |
@@ -135,8 +135,8 @@ Use this implementation order:
 1. **Shareable single-pass documents.** This is the smallest remaining user-facing V1 gap and
    exercises serialization, validation, migration, and safe import without adding a server. Define
    the payload limits and failure behavior before multi-pass documents make shared payloads larger.
-   Source-only links are prepared; the remaining slice must carry Unicode titles and active-pass
-   metadata while continuing to open existing links.
+   Prepared with Unicode titles and active-pass metadata while continuing to open existing
+   source-only links.
 2. **Named snapshots and history.** Promote the existing automatic recovery snapshots into a user
    workflow with optional names, clear automatic/manual labels, pinning or retention protection,
    preview metadata, and guarded restore. Reuse the current snapshot storage rather than building a
@@ -154,11 +154,9 @@ Use this implementation order:
    then complete the installation, accessibility, offline, thermal, memory, and media-export matrix
    after multi-pass is stable.
 
-The immediate checkpoint should finish the shared-document envelope by adding Unicode titles and
-active-pass metadata without breaking existing source-only links. After that, revision-safe compile
-scheduling is the next reliability boundary. Physical iOS Safari and Android Chrome deep-link
-behavior remains part of the release gate. Large documents continue to use project or SQLite
-export.
+The immediate checkpoint is revision-safe compile scheduling. Physical iOS Safari and Android
+Chrome deep-link behavior remains part of the release gate. Large documents continue to use project
+or SQLite export.
 
 ## What to do next
 
@@ -188,8 +186,8 @@ introducing a different server database layer.
 
 ### 2. Shareable single-pass documents
 
-Status: source-only links, compression, size limits, copy/native sharing, and safe local import are
-prepared. Unicode title and active-pass metadata remain the next implementation checkpoint.
+Status: prepared in the browser with a V2 title/pass/source envelope and backward-compatible V1
+source links; physical iOS Safari and Android Chrome deep-link checks remain in section 7.
 
 - Define a compact, versioned URL payload containing title, active pass, and source.
 - Compress and URL-safe encode small projects with explicit maximum-size handling.

@@ -5,6 +5,15 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Complete shared-document links
+
+- Upgraded generated links to a compact V2 envelope that round-trips Unicode project titles,
+  active-pass names, and GLSL source while keeping the explicit compressed URL size limits.
+- Kept existing source-only V1 links readable with a safe compatibility title and pass name, and
+  restored both formats through the same non-destructive new-project import path.
+- Verified V2 generation and import, preservation of the existing local project, and V1 deep-link
+  compatibility at 1440 × 900 with no application console errors.
+
 ### Named snapshot history
 
 - Promoted recovery snapshots into a visible history workflow with optional manual names, clear

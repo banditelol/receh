@@ -216,6 +216,18 @@ export function updateActivePassSource(document: ShaderDocument, source: string)
   };
 }
 
+export function updateActivePassName(document: ShaderDocument, name: string): ShaderDocument {
+  const nextName = name.trim() || "main.frag";
+  if (getActivePass(document).name === nextName) return document;
+
+  return {
+    ...document,
+    passes: document.passes.map((pass) =>
+      pass.id === document.activePassId ? { ...pass, name: nextName } : pass,
+    ) as [ShaderPass, ...ShaderPass[]],
+  };
+}
+
 export function updateActivePassUniformValue(
   document: ShaderDocument,
   name: string,

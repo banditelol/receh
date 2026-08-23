@@ -7,6 +7,7 @@ import {
   parseImportedShaderDocument,
   parseShaderDocument,
   updateActivePassSource,
+  updateActivePassName,
   updateActivePassUniformValue,
   updateDocumentTitle,
 } from "./shaderDocument.ts";
@@ -64,6 +65,14 @@ describe("shader document updates", () => {
 
     expect(getActivePass(before).source).toBe("before");
     expect(getActivePass(after).source).toBe("after");
+  });
+
+  it("renames only the active pass", () => {
+    const before = createShaderDocument();
+    const after = updateActivePassName(before, "shared.frag");
+
+    expect(getActivePass(before).name).toBe("main.frag");
+    expect(getActivePass(after).name).toBe("shared.frag");
   });
 
   it("normalizes an empty title", () => {

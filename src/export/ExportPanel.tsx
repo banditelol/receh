@@ -67,7 +67,7 @@ export function ExportPanel({ document, source, canRender, uniforms, onClose }: 
     setError("");
     setShareStatus("");
     try {
-      const url = await createShareUrl(source);
+      const url = await createShareUrl(document);
       setShareUrl(url);
       if (navigator.share) {
         await navigator.share({ title: `${document.title} · receh`, url });

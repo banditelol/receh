@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_SHADER } from "./defaultShader.ts";
 import {
+  createPortableShaderDocument,
   getActivePass,
   resetActivePassUniformValues,
+  updateActivePassName,
   updateActivePassSource,
   updateActivePassUniformValue,
 } from "./document/shaderDocument.ts";
@@ -30,7 +32,7 @@ import { ShaderCanvas } from "./renderer/ShaderCanvas.tsx";
 import type { ShaderDiagnostic } from "./renderer/diagnostics.ts";
 import { EditorSettingsPanel } from "./settings/EditorSettingsPanel.tsx";
 import { UniformTunerPanel } from "./uniforms/UniformTunerPanel.tsx";
-import { decodeSharedSource, removeShareCodeFromUrl } from "./share/shareLink.ts";
+import { decodeSharedDocument, removeShareCodeFromUrl } from "./share/shareLink.ts";
 import {
   bakeUniformValuesIntoSource,
   parseTunableUniforms,
@@ -66,6 +68,7 @@ export function App() {
     openProject,
     createProject,
     importProject,
+    importShaderDocument,
     importLibrary,
     exportLibrary,
     restoreSnapshot,
@@ -143,20 +146,22 @@ export function App() {
     shareImportStartedRef.current = true;
     if (!payload) return;
 
-    void decodeSharedSource(payload)
-      .then(async (sharedSource) => {
-        await importProject(
-          new File([sharedSource], "Shared shader.frag", { type: "text/plain;charset=utf-8" }),
+    void decodeSharedDocument(payload)
+      .then(async (sharedDocument) => {
+        const importedDocument = updateActivePassName(
+          createPortableShaderDocument(sharedDocument.source, sharedDocument.title),
+          sharedDocument.passName,
         );
+        await importShaderDocument(importedDocument);
         window.history.replaceState(null, "", removeShareCodeFromUrl());
-        setShareImportNotice("Shared shader added to your local library.");
+        setShareImportNotice(`“${sharedDocument.title}” added to your local library.`);
       })
       .catch((reason: unknown) => {
         setShareImportNotice(
           reason instanceof Error ? reason.message : "This shared shader could not be opened.",
         );
       });
-  }, [importProject, ready]);
+  }, [importShaderDocument, ready]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
