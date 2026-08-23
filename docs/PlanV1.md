@@ -83,7 +83,7 @@ unless real-device validation uncovers a blocking need.
 ### Current quality baseline
 
 - Formatting, linting, and strict TypeScript checks pass.
-- Fifty-four unit tests cover diagnostics, document migration/update, import validation, storage,
+- Sixty-six unit tests cover diagnostics, document migration/update, import validation, storage,
   snapshot hashing, downloads, Story timeline calculations, editor preference repair, GLSL catalog
   search, source-symbol/reference context, uniform parsing/baking, synchronized color conversion,
   storage-pressure classification, and service-worker generation.
@@ -100,8 +100,8 @@ unless real-device validation uncovers a blocking need.
 | Portable local backup              | Prepared          | Harden real-device import/share flows               |
 | Source diagnostics and completions | Prepared baseline | Add revision-safe async compile scheduling          |
 | PNG and Story MP4 export           | Prepared          | Test real-device encoding, memory, and cancellation |
-| Shareable shader URL               | Not started       | Required for V1                                     |
-| Named snapshots/history            | Not started       | Required for V1                                     |
+| Shareable shader URL               | Prepared baseline | Add title/pass envelope and physical-device checks  |
+| Named snapshots/history            | Prepared          | Harden backup/restore on real phones                |
 | Parsed uniform tuner               | Prepared          | Harden on real phones                               |
 | Ordered fragment passes            | Not started       | Required for V1                                     |
 | Installable/offline PWA            | Prepared          | Harden installation on real devices                 |
@@ -135,10 +135,13 @@ Use this implementation order:
 1. **Shareable single-pass documents.** This is the smallest remaining user-facing V1 gap and
    exercises serialization, validation, migration, and safe import without adding a server. Define
    the payload limits and failure behavior before multi-pass documents make shared payloads larger.
+   Source-only links are prepared; the remaining slice must carry Unicode titles and active-pass
+   metadata while continuing to open existing links.
 2. **Named snapshots and history.** Promote the existing automatic recovery snapshots into a user
    workflow with optional names, clear automatic/manual labels, pinning or retention protection,
    preview metadata, and guarded restore. Reuse the current snapshot storage rather than building a
-   second history system.
+   second history system. Prepared in the browser with optional names, retention protection,
+   source metadata, automatic/manual labels, and guarded restore.
 3. **Revision-safe compile scheduling.** Ensure delayed compile results can never replace a newer
    source revision, and add focused tests for rapid edits, project switches, pass switches, and
    stale diagnostics. Complete this reliability boundary before one document can run several
@@ -151,17 +154,17 @@ Use this implementation order:
    then complete the installation, accessibility, offline, thermal, memory, and media-export matrix
    after multi-pass is stable.
 
-The immediate checkpoint should therefore deliver versioned URL encode/decode utilities, explicit
-size limits, copy and native share-sheet actions, and restoration into a new unsaved project. Its
-definition of done is a safe round trip for Unicode titles and GLSL source, clear rejection of
-malformed or oversized payloads, no replacement of the active project, and verified iOS Safari and
-Android Chrome deep-link behavior. Large documents continue to use project or SQLite export.
+The immediate checkpoint should finish the shared-document envelope by adding Unicode titles and
+active-pass metadata without breaking existing source-only links. After that, revision-safe compile
+scheduling is the next reliability boundary. Physical iOS Safari and Android Chrome deep-link
+behavior remains part of the release gate. Large documents continue to use project or SQLite
+export.
 
 ## What to do next
 
 ### 1. Durable local documents and recovery
 
-Status: prepared in the browser; storage-pressure and real-device hardening remain in checkpoint 5.
+Status: prepared in the browser; storage-pressure and real-device hardening remain in section 7.
 
 - Add an asynchronous, versioned repository backed on the web by SQLite WASM and OPFS. Keep the
   schema, migrations, and repository contract platform-neutral so a later React Native client can
@@ -185,7 +188,8 @@ introducing a different server database layer.
 
 ### 2. Shareable single-pass documents
 
-This is the next implementation checkpoint.
+Status: source-only links, compression, size limits, copy/native sharing, and safe local import are
+prepared. Unicode title and active-pass metadata remain the next implementation checkpoint.
 
 - Define a compact, versioned URL payload containing title, active pass, and source.
 - Compress and URL-safe encode small projects with explicit maximum-size handling.
@@ -194,9 +198,22 @@ This is the next implementation checkpoint.
 - Add copy/share-sheet actions and test deep links on iOS Safari and Android Chrome.
 - Keep large projects on the local export path until cloud publishing exists.
 
-### 3. Uniform tuner
+### 3. Named snapshots and history
 
-Status: prepared in the browser; real-device input and accessibility coverage remain in checkpoint 5.
+Status: prepared in the browser; physical-device backup and restore hardening remain in section 7.
+
+- Reuse content-hash-deduplicated recovery rows for both automatic and manual history.
+- Allow optional manual names and promote an identical automatic snapshot rather than duplicating
+  its stored document.
+- Clearly identify automatic reasons and manual save points with source line, size, and pass
+  metadata.
+- Allow snapshots to be protected from the rolling 50-entry unpinned retention window.
+- Create a recovery copy before every confirmed restore and retain names and protection state in
+  whole-library backups.
+
+### 4. Uniform tuner
+
+Status: prepared in the browser; real-device input and accessibility coverage remain in section 7.
 
 - Parse declared float, int, bool, vector, and color uniforms into a typed model. Runtime-managed
   receh uniforms are intentionally excluded.
@@ -209,7 +226,15 @@ Status: prepared in the browser; real-device input and accessibility coverage re
 - Use `// @range min max step @default value` for numeric metadata and `// @color #RRGGBB` (or
   `#RRGGBBAA`) for explicit color controls. Common color-like `vec3`/`vec4` names are inferred.
 
-### 4. Ordered fragment passes
+### 5. Revision-safe compile scheduling
+
+- Assign every compile request to a document, pass, and monotonically increasing source revision.
+- Ignore delayed renderer results when the active project, pass, or source revision has moved on.
+- Keep last-good programs and diagnostics scoped to their owning pass.
+- Add focused coverage for rapid edits, project switches, pass switches, and stale failures before
+  several passes can compile concurrently.
+
+### 6. Ordered fragment passes
 
 - Extend the renderer from one active pass to common source plus ordered fragment passes.
 - Add previous-pass textures, configurable resolution, and deterministic framebuffer disposal.
@@ -217,7 +242,7 @@ Status: prepared in the browser; real-device input and accessibility coverage re
   actions and automatic snapshots.
 - Verify a three-pass shader can be edited and reordered repeatedly without resource or frame leaks.
 
-### 5. PWA and real-device hardening
+### 7. PWA and real-device hardening
 
 Status: the browser PWA and storage-pressure baseline are prepared. The remaining work requires
 physical iPhone and Android validation.

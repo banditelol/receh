@@ -157,6 +157,22 @@ export function useShaderLibrary() {
     }
   }, [ready]);
 
+  const createManualSnapshot = useCallback(
+    async (name: string, pinned: boolean) => {
+      if (!ready) throw new Error("The shader library has not finished opening.");
+      await persistDocument(documentRef.current);
+      await repository.createManualSnapshot(documentRef.current, { name, pinned });
+      setSnapshots(await repository.listSnapshots(documentRef.current.id));
+      setStorageMessage(pinned ? "Named snapshot saved and protected." : "Snapshot saved.");
+    },
+    [persistDocument, ready],
+  );
+
+  const setSnapshotPinned = useCallback(async (snapshotId: string, pinned: boolean) => {
+    await repository.setSnapshotPinned(snapshotId, pinned);
+    setSnapshots(await repository.listSnapshots(documentRef.current.id));
+  }, []);
+
   const openProject = useCallback(
     async (projectId: string) => {
       await persistDocument(documentRef.current);
@@ -248,6 +264,7 @@ export function useShaderLibrary() {
     persistent,
     ready,
     createSnapshot,
+    createManualSnapshot,
     refreshSnapshots,
     openProject,
     createProject,
@@ -255,6 +272,7 @@ export function useShaderLibrary() {
     importLibrary,
     exportLibrary,
     restoreSnapshot,
+    setSnapshotPinned,
     renameDocument,
   };
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import type { ProjectSummary, SnapshotSummary } from "../document/repository.ts";
 import type { ShaderDocument } from "../document/shaderDocument.ts";
+import { MAX_SNAPSHOT_NAME_LENGTH } from "../document/snapshotMetadata.ts";
 import type { LibrarySaveStatus } from "../document/useShaderLibrary.ts";
 import { formatStorageSize, type StorageHealth } from "../pwa/useStorageHealth.ts";
 
@@ -20,6 +21,8 @@ type LibraryPanelProps = {
   onImportLibrary: (file: File) => Promise<void>;
   onExportLibrary: () => Promise<void>;
   onRestoreSnapshot: (snapshotId: string) => Promise<void>;
+  onCreateSnapshot: (name: string, pinned: boolean) => Promise<void>;
+  onSetSnapshotPinned: (snapshotId: string, pinned: boolean) => Promise<void>;
 };
 
 export const SAVE_STATUS_LABELS: Record<LibrarySaveStatus, string> = {
@@ -31,6 +34,7 @@ export const SAVE_STATUS_LABELS: Record<LibrarySaveStatus, string> = {
 };
 
 const SNAPSHOT_LABELS: Record<SnapshotSummary["reason"], string> = {
+  manual: "Manual snapshot",
   idle: "Quiet edit",
   "before-reset": "Before reset",
   "before-import": "Before import",
@@ -63,9 +67,15 @@ export function LibraryPanel({
   onImportLibrary,
   onExportLibrary,
   onRestoreSnapshot,
+  onCreateSnapshot,
+  onSetSnapshotPinned,
 }: LibraryPanelProps) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [snapshotName, setSnapshotName] = useState("");
+  const [pinNewSnapshot, setPinNewSnapshot] = useState(true);
+  const pinnedSnapshotCount = snapshots.filter((snapshot) => snapshot.pinned).length;
+  const recentSnapshotCount = snapshots.length - pinnedSnapshotCount;
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -190,36 +200,111 @@ export function LibraryPanel({
           <section className="library-section" aria-labelledby="recovery-title">
             <div className="library-section-heading">
               <div>
-                <span className="eyebrow">Recovery</span>
-                <h3 id="recovery-title">Recent snapshots</h3>
+                <span className="eyebrow">History</span>
+                <h3 id="recovery-title">Snapshots</h3>
               </div>
-              <span className="snapshot-count">{snapshots.length}/50</span>
+              <span className="snapshot-count">
+                {recentSnapshotCount}/50{pinnedSnapshotCount > 0 ? ` + ${pinnedSnapshotCount}` : ""}
+              </span>
+            </div>
+            <div className="snapshot-create">
+              <input
+                type="text"
+                value={snapshotName}
+                maxLength={MAX_SNAPSHOT_NAME_LENGTH}
+                placeholder="Name this point (optional)"
+                aria-label="Snapshot name"
+                disabled={Boolean(busy)}
+                onChange={(event) => setSnapshotName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !busy) {
+                    void run("snapshot", async () => {
+                      await onCreateSnapshot(snapshotName, pinNewSnapshot);
+                      setSnapshotName("");
+                    });
+                  }
+                }}
+              />
+              <label className="snapshot-keep">
+                <input
+                  type="checkbox"
+                  checked={pinNewSnapshot}
+                  disabled={Boolean(busy)}
+                  onChange={(event) => setPinNewSnapshot(event.target.checked)}
+                />
+                Keep
+              </label>
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={Boolean(busy)}
+                onClick={() =>
+                  void run("snapshot", async () => {
+                    await onCreateSnapshot(snapshotName, pinNewSnapshot);
+                    setSnapshotName("");
+                  })
+                }
+              >
+                {busy === "snapshot" ? "Saving…" : "Save point"}
+              </button>
             </div>
             <div className="snapshot-list">
               {snapshots.length === 0 ? (
                 <p className="library-empty">
-                  Snapshots appear after 30 quiet seconds and before protected actions.
+                  Save a named point, or keep editing for automatic recovery snapshots.
                 </p>
               ) : (
                 snapshots.map((snapshot) => (
-                  <button
-                    className="snapshot-row"
-                    type="button"
-                    key={snapshot.id}
-                    disabled={Boolean(busy)}
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          "Restore this snapshot? A recovery copy of your current project will be created first.",
-                        )
-                      ) {
-                        void run("restore", () => onRestoreSnapshot(snapshot.id), true);
+                  <article className="snapshot-row" key={snapshot.id}>
+                    <button
+                      className="snapshot-restore"
+                      type="button"
+                      disabled={Boolean(busy)}
+                      onClick={() => {
+                        const label = snapshot.name ?? SNAPSHOT_LABELS[snapshot.reason];
+                        if (
+                          window.confirm(
+                            `Restore “${label}”? A recovery copy of your current project will be created first.`,
+                          )
+                        ) {
+                          void run("restore", () => onRestoreSnapshot(snapshot.id), true);
+                        }
+                      }}
+                    >
+                      <span className="snapshot-title">
+                        <strong>{snapshot.name ?? SNAPSHOT_LABELS[snapshot.reason]}</strong>
+                        <time dateTime={new Date(snapshot.createdAt).toISOString()}>
+                          {formatSnapshotTime(snapshot.createdAt)}
+                        </time>
+                      </span>
+                      <small className="snapshot-meta">
+                        {snapshot.reason === "manual"
+                          ? "Manual"
+                          : `Automatic · ${SNAPSHOT_LABELS[snapshot.reason]}`}
+                        {` · ${snapshot.passName} · ${snapshot.lineCount} ${snapshot.lineCount === 1 ? "line" : "lines"} · ${formatStorageSize(snapshot.sourceBytes)}`}
+                      </small>
+                      <code>{snapshot.sourcePreview}</code>
+                    </button>
+                    <button
+                      className="snapshot-pin"
+                      type="button"
+                      aria-pressed={snapshot.pinned}
+                      aria-label={
+                        snapshot.pinned
+                          ? `Allow ${snapshot.name ?? SNAPSHOT_LABELS[snapshot.reason]} to expire`
+                          : `Keep ${snapshot.name ?? SNAPSHOT_LABELS[snapshot.reason]}`
                       }
-                    }}
-                  >
-                    <span>{SNAPSHOT_LABELS[snapshot.reason]}</span>
-                    <small>{formatSnapshotTime(snapshot.createdAt)}</small>
-                  </button>
+                      title={snapshot.pinned ? "Protected from automatic cleanup" : "Keep snapshot"}
+                      disabled={Boolean(busy)}
+                      onClick={() =>
+                        void run(`pin-${snapshot.id}`, () =>
+                          onSetSnapshotPinned(snapshot.id, !snapshot.pinned),
+                        )
+                      }
+                    >
+                      <span aria-hidden="true">{snapshot.pinned ? "◆" : "◇"}</span>
+                    </button>
+                  </article>
                 ))
               )}
             </div>

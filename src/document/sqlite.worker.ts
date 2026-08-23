@@ -27,6 +27,7 @@ import {
   type ShaderDocument,
   type ShaderPass,
 } from "./shaderDocument.ts";
+import { createSnapshotPreview, normalizeSnapshotName } from "./snapshotMetadata.ts";
 
 type WorkerScope = {
   onmessage: ((event: MessageEvent<DatabaseRequest>) => void) | null;
@@ -68,7 +69,7 @@ function ensureDatabaseSchema(db: Database) {
   if (version > SHADER_POCKET_DATABASE_VERSION) {
     throw new Error(`Shader library version ${version} is newer than this app supports.`);
   }
-  if (version !== 0 && version !== 1 && version !== SHADER_POCKET_DATABASE_VERSION) {
+  if (![0, 1, 2, SHADER_POCKET_DATABASE_VERSION].includes(version)) {
     throw new Error(`Shader library version ${version} is not supported.`);
   }
 
@@ -76,15 +77,21 @@ function ensureDatabaseSchema(db: Database) {
   if (version === 1) {
     db.exec("ALTER TABLE passes ADD COLUMN uniform_values_json TEXT NOT NULL DEFAULT '{}'");
   }
+  if (!hasTableColumn(db, "snapshots", "name")) {
+    db.exec("ALTER TABLE snapshots ADD COLUMN name TEXT");
+  }
+  if (!hasTableColumn(db, "snapshots", "pinned")) {
+    db.exec("ALTER TABLE snapshots ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0");
+  }
   db.exec(`PRAGMA application_id = ${SHADER_POCKET_APPLICATION_ID}`);
   db.exec(`PRAGMA user_version = ${SHADER_POCKET_DATABASE_VERSION}`);
   db.exec("PRAGMA foreign_keys = ON");
 }
 
-function hasUniformValuesColumn(db: Database) {
+function hasTableColumn(db: Database, table: "passes" | "snapshots", columnName: string) {
   return db
-    .selectObjects("PRAGMA table_info(passes)")
-    .some((column) => column.name === "uniform_values_json");
+    .selectObjects(`PRAGMA table_info(${table})`)
+    .some((column) => column.name === columnName);
 }
 
 function parseUniformValuesJson(value: SqlValue | undefined) {
@@ -129,7 +136,7 @@ function loadDocumentFrom(db: Database, projectId: string): ShaderDocument | nul
   );
   if (!project) return null;
 
-  const uniformValuesProjection = hasUniformValuesColumn(db)
+  const uniformValuesProjection = hasTableColumn(db, "passes", "uniform_values_json")
     ? "uniform_values_json"
     : "'{}' AS uniform_values_json";
   const passes = db
@@ -213,6 +220,7 @@ function writeDocumentTo(db: Database, document: ShaderDocument, timestamp = Dat
 
 function isSnapshotReason(value: string): value is SnapshotReason {
   return [
+    "manual",
     "idle",
     "before-reset",
     "before-import",
@@ -228,7 +236,7 @@ function trimSnapshots(db: Database, projectId: string) {
     sql: `DELETE FROM snapshots
           WHERE id IN (
             SELECT id FROM snapshots
-            WHERE project_id = ?
+            WHERE project_id = ? AND pinned = 0
             ORDER BY created_at DESC, rowid DESC
             LIMIT -1 OFFSET ?
           )`,
@@ -240,45 +248,108 @@ async function insertSnapshot(
   db: Database,
   document: ShaderDocument,
   reason: SnapshotReason,
-  options: { id?: string; createdAt?: number } = {},
+  options: {
+    id?: string;
+    createdAt?: number;
+    name?: string | null;
+    pinned?: boolean;
+    promoteExisting?: boolean;
+  } = {},
 ) {
   const hash = await hashShaderDocument(document);
+  const snapshotId = options.id ?? crypto.randomUUID();
+  const createdAt = options.createdAt ?? Date.now();
+  const name = normalizeSnapshotName(options.name ?? undefined);
   db.exec({
     sql: `INSERT OR IGNORE INTO snapshots (
-            id, project_id, created_at, reason, content_hash, document_json
-          ) VALUES (?, ?, ?, ?, ?, ?)`,
+            id, project_id, created_at, reason, name, pinned, content_hash, document_json
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     bind: [
-      options.id ?? crypto.randomUUID(),
+      snapshotId,
       document.id,
-      options.createdAt ?? Date.now(),
+      createdAt,
       reason,
+      name,
+      options.pinned ? 1 : 0,
       hash,
       JSON.stringify(document),
     ],
   });
   const inserted = db.changes() > 0;
+  let storedId = snapshotId;
+  if (!inserted && options.promoteExisting) {
+    const existingId = db.selectValue(
+      "SELECT id FROM snapshots WHERE project_id = ? AND content_hash = ?",
+      [document.id, hash],
+    );
+    if (typeof existingId !== "string") {
+      throw new Error("The matching recovery snapshot could not be found.");
+    }
+    storedId = existingId;
+    db.exec({
+      sql: `UPDATE snapshots
+            SET created_at = ?, reason = 'manual', name = COALESCE(?, name),
+                pinned = CASE WHEN ? = 1 THEN 1 ELSE pinned END
+            WHERE id = ?`,
+      bind: [createdAt, name, options.pinned ? 1 : 0, existingId],
+    });
+  }
   trimSnapshots(db, document.id);
-  return inserted;
+  return { inserted, snapshotId: storedId };
+}
+
+function snapshotSummaryFromRow(row: Record<string, SqlValue>): SnapshotSummary {
+  const reason = asString(row.reason, "snapshot reason");
+  if (!isSnapshotReason(reason)) throw new Error("The database contains an invalid snapshot.");
+  const document = parseImportedShaderDocument(asString(row.document_json, "snapshot document"));
+  const preview = createSnapshotPreview(document);
+  const name = row.name;
+  if (name !== null && name !== undefined && typeof name !== "string") {
+    throw new Error("The database contains an invalid snapshot name.");
+  }
+  return {
+    id: asString(row.id, "snapshot id"),
+    projectId: asString(row.project_id, "snapshot project id"),
+    createdAt: asNumber(row.created_at, "snapshot time"),
+    reason,
+    name: name ?? null,
+    pinned: asNumber(row.pinned, "snapshot pin state") !== 0,
+    ...preview,
+  };
+}
+
+function getSnapshotSummary(snapshotId: string) {
+  const row = requireDatabase().selectObject(
+    `SELECT id, project_id, created_at, reason, name, pinned, document_json
+     FROM snapshots WHERE id = ?`,
+    [snapshotId],
+  );
+  if (!row) throw new Error("That recovery snapshot no longer exists.");
+  return snapshotSummaryFromRow(row);
 }
 
 function listSnapshots(projectId: string): SnapshotSummary[] {
   return requireDatabase()
     .selectObjects(
-      `SELECT id, project_id, created_at, reason
+      `SELECT id, project_id, created_at, reason, name, pinned, document_json
        FROM snapshots WHERE project_id = ?
-       ORDER BY created_at DESC, rowid DESC`,
+       ORDER BY pinned DESC, created_at DESC, rowid DESC`,
       [projectId],
     )
-    .map((row) => {
-      const reason = asString(row.reason, "snapshot reason");
-      if (!isSnapshotReason(reason)) throw new Error("The database contains an invalid snapshot.");
-      return {
-        id: asString(row.id, "snapshot id"),
-        projectId: asString(row.project_id, "snapshot project id"),
-        createdAt: asNumber(row.created_at, "snapshot time"),
-        reason,
-      };
-    });
+    .map(snapshotSummaryFromRow);
+}
+
+function setSnapshotPinned(snapshotId: string, pinned: boolean) {
+  const row = requireDatabase().selectObject("SELECT project_id FROM snapshots WHERE id = ?", [
+    snapshotId,
+  ]);
+  if (!row) throw new Error("That recovery snapshot no longer exists.");
+  requireDatabase().exec({
+    sql: "UPDATE snapshots SET pinned = ? WHERE id = ?",
+    bind: [pinned ? 1 : 0, snapshotId],
+  });
+  trimSnapshots(requireDatabase(), asString(row.project_id, "snapshot project id"));
+  return undefined;
 }
 
 function loadSnapshot(snapshotId: string) {
@@ -350,7 +421,7 @@ async function importLibrary(bytes: Uint8Array): Promise<LibraryImportResult> {
     if (applicationId !== SHADER_POCKET_APPLICATION_ID) {
       throw new Error("This is not a receh SQLite library.");
     }
-    if (version !== 1 && version !== SHADER_POCKET_DATABASE_VERSION) {
+    if (version < 1 || version > SHADER_POCKET_DATABASE_VERSION) {
       throw new Error(`Shader library version ${version} is not supported.`);
     }
 
@@ -373,8 +444,14 @@ async function importLibrary(bytes: Uint8Array): Promise<LibraryImportResult> {
       writeDocumentTo(target, document, project.updatedAt);
       importedDocuments.push(document);
 
+      const nameProjection = hasTableColumn(imported, "snapshots", "name")
+        ? "name"
+        : "NULL AS name";
+      const pinnedProjection = hasTableColumn(imported, "snapshots", "pinned")
+        ? "pinned"
+        : "0 AS pinned";
       const snapshots = imported.selectObjects(
-        `SELECT id, created_at, reason, document_json
+        `SELECT id, created_at, reason, ${nameProjection}, ${pinnedProjection}, document_json
          FROM snapshots WHERE project_id = ? ORDER BY created_at`,
         [sourceDocument.id],
       );
@@ -391,6 +468,8 @@ async function importLibrary(bytes: Uint8Array): Promise<LibraryImportResult> {
           await insertSnapshot(target, snapshot, reason, {
             id: collision ? undefined : asString(row.id, "snapshot id"),
             createdAt: asNumber(row.created_at, "snapshot time"),
+            name: typeof row.name === "string" ? row.name : null,
+            pinned: row.pinned === 1 || row.pinned === 1n,
           });
         } catch {
           // A corrupt recovery row should not prevent valid projects from importing.
@@ -461,9 +540,21 @@ async function handleRequest(request: DatabaseRequest): Promise<DatabaseResult> 
       return imported;
     }
     case "create-snapshot":
-      return insertSnapshot(requireDatabase(), request.payload.document, request.payload.reason);
+      return (
+        await insertSnapshot(requireDatabase(), request.payload.document, request.payload.reason)
+      ).inserted;
+    case "create-manual-snapshot": {
+      const result = await insertSnapshot(requireDatabase(), request.payload.document, "manual", {
+        name: request.payload.name,
+        pinned: request.payload.pinned,
+        promoteExisting: true,
+      });
+      return getSnapshotSummary(result.snapshotId);
+    }
     case "list-snapshots":
       return listSnapshots(request.payload.projectId);
+    case "set-snapshot-pinned":
+      return setSnapshotPinned(request.payload.snapshotId, request.payload.pinned);
     case "load-snapshot":
       return loadSnapshot(request.payload.snapshotId);
     case "export-library": {

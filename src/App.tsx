@@ -61,6 +61,7 @@ export function App() {
     persistent,
     ready,
     createSnapshot,
+    createManualSnapshot,
     refreshSnapshots,
     openProject,
     createProject,
@@ -68,6 +69,7 @@ export function App() {
     importLibrary,
     exportLibrary,
     restoreSnapshot,
+    setSnapshotPinned,
     renameDocument,
   } = useShaderLibrary();
   const [compileRequest, setCompileRequest] = useState(0);
@@ -659,6 +661,8 @@ export function App() {
           onImportLibrary={importLibrary}
           onExportLibrary={exportLibrary}
           onRestoreSnapshot={restoreSnapshot}
+          onCreateSnapshot={createManualSnapshot}
+          onSetSnapshotPinned={setSnapshotPinned}
         />
       )}
 

@@ -4,6 +4,7 @@ export const SNAPSHOT_RETENTION_LIMIT = 50;
 export const IDLE_SNAPSHOT_DELAY_MS = 30_000;
 
 export type SnapshotReason =
+  | "manual"
   | "idle"
   | "before-reset"
   | "before-import"
@@ -23,6 +24,14 @@ export type SnapshotSummary = {
   projectId: string;
   createdAt: number;
   reason: SnapshotReason;
+  name: string | null;
+  pinned: boolean;
+  title: string;
+  passName: string;
+  passCount: number;
+  lineCount: number;
+  sourceBytes: number;
+  sourcePreview: string;
 };
 
 export type RepositoryBootstrap = {
@@ -49,7 +58,12 @@ export interface ShaderRepository {
   saveDocument(document: ShaderDocument): Promise<ProjectSummary[]>;
   importDocument(document: ShaderDocument): Promise<ShaderDocument>;
   createSnapshot(document: ShaderDocument, reason: SnapshotReason): Promise<boolean>;
+  createManualSnapshot(
+    document: ShaderDocument,
+    options: { name?: string; pinned: boolean },
+  ): Promise<SnapshotSummary>;
   listSnapshots(projectId: string): Promise<SnapshotSummary[]>;
+  setSnapshotPinned(snapshotId: string, pinned: boolean): Promise<void>;
   loadSnapshot(snapshotId: string): Promise<ShaderDocument>;
   exportLibrary(): Promise<Uint8Array>;
   importLibrary(bytes: Uint8Array): Promise<LibraryImportResult>;

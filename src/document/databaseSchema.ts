@@ -1,5 +1,5 @@
 export const SHADER_POCKET_DATABASE_FILENAME = "/shader-pocket.sqlite3";
-export const SHADER_POCKET_DATABASE_VERSION = 2;
+export const SHADER_POCKET_DATABASE_VERSION = 3;
 export const SHADER_POCKET_APPLICATION_ID = 0x53504b54;
 
 export const CREATE_DATABASE_SCHEMA_SQL = `
@@ -31,6 +31,8 @@ export const CREATE_DATABASE_SCHEMA_SQL = `
     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     created_at INTEGER NOT NULL,
     reason TEXT NOT NULL,
+    name TEXT,
+    pinned INTEGER NOT NULL DEFAULT 0,
     content_hash TEXT NOT NULL,
     document_json TEXT NOT NULL,
     UNIQUE(project_id, content_hash)

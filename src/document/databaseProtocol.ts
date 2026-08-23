@@ -22,7 +22,17 @@ export type DatabaseRequest =
       command: "create-snapshot";
       payload: { document: ShaderDocument; reason: SnapshotReason };
     }
+  | {
+      id: number;
+      command: "create-manual-snapshot";
+      payload: { document: ShaderDocument; name?: string; pinned: boolean };
+    }
   | { id: number; command: "list-snapshots"; payload: { projectId: string } }
+  | {
+      id: number;
+      command: "set-snapshot-pinned";
+      payload: { snapshotId: string; pinned: boolean };
+    }
   | { id: number; command: "load-snapshot"; payload: { snapshotId: string } }
   | { id: number; command: "export-library" }
   | { id: number; command: "import-library"; payload: { bytes: Uint8Array } };
@@ -37,9 +47,11 @@ export type DatabaseResult =
   | RepositoryBootstrap
   | ProjectSummary[]
   | ShaderDocument
+  | SnapshotSummary
   | SnapshotSummary[]
   | LibraryImportResult
   | Uint8Array
+  | undefined
   | boolean;
 
 export type DatabaseResponse =

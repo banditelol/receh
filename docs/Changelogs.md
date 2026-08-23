@@ -5,6 +5,18 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Named snapshot history
+
+- Promoted recovery snapshots into a visible history workflow with optional manual names, clear
+  automatic/manual labels, active-pass line and size metadata, and guarded restore that preserves
+  the current edit first.
+- Added per-snapshot retention protection outside the rolling 50 unpinned entries, while promoting
+  identical automatic content into a named manual point instead of storing a duplicate.
+- Migrated SQLite libraries to schema V3 for snapshot names and protection state, including
+  backward-compatible V1/V2 library import and collision-safe transfer of the new metadata.
+- Verified manual creation, Unicode naming, duplicate promotion, pin toggling, automatic
+  pre-restore recovery, and restore at 1440 × 900 and 390 × 844 with no application console errors.
+
 ### Master VM preview sync
 
 - Added a guarded VM sync script that fetches `origin/main`, fast-forwards only a clean local

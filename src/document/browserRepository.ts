@@ -79,8 +79,25 @@ class BrowserShaderRepository implements ShaderRepository {
     return this.#request({ command: "create-snapshot", payload: { document, reason } });
   }
 
+  createManualSnapshot(
+    document: ShaderDocument,
+    options: { name?: string; pinned: boolean },
+  ): Promise<SnapshotSummary> {
+    return this.#request<SnapshotSummary>({
+      command: "create-manual-snapshot",
+      payload: { document, ...options },
+    });
+  }
+
   listSnapshots(projectId: string): Promise<SnapshotSummary[]> {
     return this.#request({ command: "list-snapshots", payload: { projectId } });
+  }
+
+  setSnapshotPinned(snapshotId: string, pinned: boolean): Promise<void> {
+    return this.#request<undefined>({
+      command: "set-snapshot-pinned",
+      payload: { snapshotId, pinned },
+    });
   }
 
   loadSnapshot(snapshotId: string): Promise<ShaderDocument> {
