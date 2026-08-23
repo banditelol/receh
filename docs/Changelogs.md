@@ -3,6 +3,15 @@
 Meaningful repository changes are recorded here newest-first. Entries are grouped by logical work
 area and may summarize one or more related commits.
 
+## 2026-08-24
+
+### Aqua interface and coin identity
+
+- Shifted the primary interface accents and default Pocket Night editor highlights from warm
+  orange/purple to a bluish aqua and blue palette while retaining red for errors.
+- Reworked the header logo, favicon, install icons, maskable icon, and Apple touch icon into a
+  dimensional aqua coin with a visible rim, highlight, and cast shadow.
+
 ## 2026-08-23
 
 ### Aspect-correct live preview thumbnails

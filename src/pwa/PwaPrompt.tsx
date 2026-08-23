@@ -82,9 +82,12 @@ export function PwaPrompt({ pwa }: PwaPromptProps) {
       role="status"
       aria-label="Install receh"
     >
-      <span className="pwa-prompt-mark" aria-hidden="true">
-        ƒ
-      </span>
+      <img
+        className="pwa-prompt-mark pwa-prompt-mark--coin"
+        src={`${import.meta.env.BASE_URL}favicon.svg`}
+        alt=""
+        aria-hidden="true"
+      />
       <span className="pwa-prompt-copy">
         <strong>Install receh</strong>
         <small>
