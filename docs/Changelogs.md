@@ -9,8 +9,10 @@ area and may summarize one or more related commits.
 
 - Added a guarded VM sync script that fetches `origin/main`, fast-forwards only a clean local
   `main` checkout, and refreshes dependencies when a merged change updates the package manifest or
-  lockfile. The master VM runs it once per minute so remotely merged work reaches the development
-  preview without a manual pull.
+  lockfile. The master VM runs it once per minute and restarts the preview service after an update
+  so remotely merged work reaches the deployed development preview without a manual pull.
+- Added a persistent user service for the master VM development preview on `0.0.0.0:37005`, with
+  automatic startup and restart so `ishineko:37005` remains available after merges and reboots.
 
 ### Compact mobile editing
 

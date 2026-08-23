@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => ({
     host: "0.0.0.0",
     port: 37005,
     strictPort: true,
-    allowedHosts: ["ishineko.banteng-ratio.ts.net"],
+    allowedHosts: ["ishineko", "ishineko.banteng-ratio.ts.net"],
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",
       "Cross-Origin-Embedder-Policy": "require-corp",

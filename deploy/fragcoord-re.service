@@ -1,0 +1,16 @@
+[Unit]
+Description=receh development preview
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/banditelol/Spaces/Personal/FragCoordRe
+Environment=PATH=/home/banditelol/.vite-plus/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/home/banditelol/.vite-plus/bin/vp dev
+Restart=always
+RestartSec=2
+TimeoutStopSec=10
+
+[Install]
+WantedBy=default.target

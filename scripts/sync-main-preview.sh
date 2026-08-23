@@ -5,6 +5,7 @@ set -eu
 readonly repo="${FRAGCOORD_REPO:-/home/banditelol/Spaces/Personal/FragCoordRe}"
 readonly vp_bin="${FRAGCOORD_VP_BIN:-/home/banditelol/.vite-plus/bin/vp}"
 readonly lock_file="${FRAGCOORD_SYNC_LOCK:-/tmp/fragcoord-main-preview-sync.lock}"
+readonly preview_service="${FRAGCOORD_PREVIEW_SERVICE-fragcoord-re.service}"
 
 log() {
   print -r -- "[$(/usr/bin/date --iso-8601=seconds)] $*"
@@ -50,4 +51,10 @@ if [[ "${dependencies_changed}" == "true" ]]; then
   "${vp_bin}" install --frozen-lockfile
 fi
 
-log "Updated main from ${current_commit[1,8]} to ${remote_commit[1,8]}; the development preview can hot-reload the new files."
+if [[ -n "${preview_service}" && -S /run/user/$(/usr/bin/id -u)/bus ]]; then
+  XDG_RUNTIME_DIR="/run/user/$(/usr/bin/id -u)" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(/usr/bin/id -u)/bus" \
+    /usr/bin/systemctl --user try-restart "${preview_service}"
+fi
+
+log "Updated main from ${current_commit[1,8]} to ${remote_commit[1,8]} and refreshed the development preview."
