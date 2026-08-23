@@ -193,6 +193,9 @@ contains no React or browser implementation details and exposes operations for:
 initialization, legacy `localStorage` migration, active-project selection, debounced document and
 Global-functions saves, idle snapshots, guarded risky actions, and save/recovery status.
 
+For the exact SQLite tables, Project-count/storage limits, Snapshot version behavior, and format
+compatibility rules, see [`docs/ProjectStorage.md`](docs/ProjectStorage.md).
+
 [`browserRepository.ts`](src/document/browserRepository.ts) sends typed request messages to one
 SQLite worker. The worker:
 

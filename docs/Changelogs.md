@@ -5,6 +5,13 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Project storage and format compatibility
+
+- Added [`ProjectStorage.md`](./ProjectStorage.md), documenting the current Local library scope,
+  SQLite tables, Project count and import limits, Snapshot retention/version behavior, active Project
+  restoration, library merge identity remapping, and backward-compatible document/database format
+  migration guidance.
+
 ### Architecture and refactor documentation
 
 - Added [`Architecture.md`](../Architecture.md), a current implementation map covering the React
