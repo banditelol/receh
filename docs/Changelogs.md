@@ -5,6 +5,17 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Compact mobile editing
+
+- Made the phone app header and the preview transport collapsible, with compact in-context reveal
+  controls that keep the editor and live canvas available underneath.
+- Replaced the automatically open compiler-error drawer with a compact error count in the editor
+  header. Selecting it jumps to the first failure, while highlighted error line numbers reveal and
+  dismiss their messages inline.
+- Added focus-aware visual-viewport keyboard detection so the phone Preview/Code tabs and their
+  safe-area padding disappear while typing, allowing the editor to meet the keyboard without an
+  empty gap across both overlay- and resize-based mobile browser behavior.
+
 ### Persistent PWA installation
 
 - Added a permanent install section to Config so the native install action or iOS Add to Home

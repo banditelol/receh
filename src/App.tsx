@@ -70,6 +70,9 @@ export function App() {
   const [message, setMessage] = useState("Compiling");
   const [diagnostics, setDiagnostics] = useState<ShaderDiagnostic[]>([]);
   const [mobilePane, setMobilePane] = useState<MobilePane>("preview");
+  const [topbarCollapsed, setTopbarCollapsed] = useState(false);
+  const [previewToolbarCollapsed, setPreviewToolbarCollapsed] = useState(false);
+  const [expandedDiagnosticLine, setExpandedDiagnosticLine] = useState<number | null>(null);
   const [paused, setPaused] = useState(false);
   const [playbackTime, setPlaybackTime] = useState(0);
   const [playbackRange, setPlaybackRange] = useState(DEFAULT_PLAYBACK_RANGE);
@@ -108,6 +111,16 @@ export function App() {
   useEffect(() => {
     saveEditorPreferences(window.localStorage, editorPreferences);
   }, [editorPreferences]);
+
+  useEffect(() => {
+    if (
+      status !== "error" ||
+      (expandedDiagnosticLine !== null &&
+        !diagnostics.some((diagnostic) => diagnostic.line === expandedDiagnosticLine))
+    ) {
+      setExpandedDiagnosticLine(null);
+    }
+  }, [diagnostics, expandedDiagnosticLine, status]);
 
   useEffect(() => {
     if (!ready || shareImportStartedRef.current) return;
@@ -238,10 +251,21 @@ export function App() {
 
   const navigateToDiagnostic = (diagnostic: ShaderDiagnostic) => {
     setMobilePane("code");
+    setExpandedDiagnosticLine(diagnostic.line);
     setNavigationTarget((current) => ({
       line: diagnostic.line,
       request: (current?.request ?? 0) + 1,
     }));
+  };
+
+  const toggleDiagnosticDetails = () => {
+    if (expandedDiagnosticLine !== null) {
+      setExpandedDiagnosticLine(null);
+      return;
+    }
+
+    const firstDiagnostic = diagnostics[0];
+    if (firstDiagnostic) navigateToDiagnostic(firstDiagnostic);
   };
 
   const openLibrary = () => {
@@ -281,7 +305,7 @@ export function App() {
 
   return (
     <main
-      className={`app app--${mobilePane} app--code-presentation-${editorPreferences.phoneCodePresentation}`}
+      className={`app app--${mobilePane} app--code-presentation-${editorPreferences.phoneCodePresentation} ${topbarCollapsed ? "app--topbar-collapsed" : ""}`}
     >
       <header className="topbar">
         <button
@@ -310,6 +334,14 @@ export function App() {
           <button className="config-button" type="button" onClick={() => setSettingsOpen(true)}>
             Config
           </button>
+          <button
+            className="topbar-toggle"
+            type="button"
+            onClick={() => setTopbarCollapsed(true)}
+            aria-label="Hide app header"
+          >
+            <span aria-hidden="true">⌃</span>
+          </button>
         </div>
       </header>
 
@@ -328,7 +360,19 @@ export function App() {
             onCompileState={handleCompileState}
             onPlaybackTimeChange={handlePlaybackTimeChange}
           />
-          <div className="preview-toolbar">
+          {topbarCollapsed && (
+            <button
+              className="topbar-restore topbar-restore--preview"
+              type="button"
+              onClick={() => setTopbarCollapsed(false)}
+              aria-label="Show app header"
+            >
+              <span aria-hidden="true">⌄</span>
+            </button>
+          )}
+          <div
+            className={`preview-toolbar ${previewToolbarCollapsed ? "preview-toolbar--collapsed" : ""}`}
+          >
             <span className={`status status--${status}`}>
               <span className="status-dot" aria-hidden="true" />
               {statusText}
@@ -387,15 +431,61 @@ export function App() {
                 </span>
                 {previewFullscreen ? "Exit" : "Fullscreen"}
               </button>
+              <button
+                className="preview-control preview-toolbar-toggle"
+                type="button"
+                onClick={() => setPreviewToolbarCollapsed((value) => !value)}
+                aria-label={
+                  previewToolbarCollapsed ? "Show preview controls" : "Hide preview controls"
+                }
+                aria-expanded={!previewToolbarCollapsed}
+              >
+                <span className="preview-control-icon" aria-hidden="true">
+                  {previewToolbarCollapsed ? "⌃" : "⌄"}
+                </span>
+                {previewToolbarCollapsed ? "Controls" : "Hide"}
+              </button>
             </span>
           </div>
         </section>
 
         <section className="code-pane" aria-label="Code panel">
           <div className="panel-heading">
-            <div>
-              <span className="eyebrow">Fragment shader</span>
-              <strong>{activePass.name}</strong>
+            <div className="panel-heading-primary">
+              {topbarCollapsed && (
+                <button
+                  className="topbar-restore"
+                  type="button"
+                  onClick={() => setTopbarCollapsed(false)}
+                  aria-label="Show app header"
+                >
+                  <span aria-hidden="true">⌄</span>
+                </button>
+              )}
+              {status === "error" ? (
+                <button
+                  className="panel-error-button"
+                  type="button"
+                  onClick={toggleDiagnosticDetails}
+                  aria-expanded={expandedDiagnosticLine !== null}
+                  aria-label={`${statusText}. ${
+                    expandedDiagnosticLine === null
+                      ? "Show the first error"
+                      : "Hide inline error details"
+                  }`}
+                  title={diagnostics.length > 0 ? undefined : message}
+                >
+                  <span className="status-dot" aria-hidden="true" />
+                  {diagnostics.length > 0
+                    ? `${diagnostics.length} ${diagnostics.length === 1 ? "error" : "errors"}`
+                    : "Compile error"}
+                </button>
+              ) : (
+                <span className="panel-heading-title">
+                  <span className="eyebrow">Fragment shader</span>
+                  <strong>{activePass.name}</strong>
+                </span>
+              )}
             </div>
             <div className="panel-heading-actions">
               <span className="language-pill">GLSL 300 ES</span>
@@ -438,6 +528,11 @@ export function App() {
             preferences={editorPreferences}
             searchRequest={searchRequest}
             onReferenceChange={setCursorReference}
+            expandedDiagnosticLine={expandedDiagnosticLine}
+            onDiagnosticLineClick={(line) => {
+              setExpandedDiagnosticLine(line);
+            }}
+            onCloseDiagnostic={() => setExpandedDiagnosticLine(null)}
           />
           {cursorReference && editorPreferences.inlineDocumentation && status !== "error" && (
             <button
@@ -450,25 +545,6 @@ export function App() {
               <code>{cursorReference.signatures[0]}</code>
               <span>Inspect</span>
             </button>
-          )}
-          {status === "error" && (
-            <div className="error-drawer" role="status" aria-live="polite">
-              {diagnostics.length > 0 ? (
-                diagnostics.map((diagnostic, index) => (
-                  <button
-                    type="button"
-                    className="diagnostic-link"
-                    key={`${diagnostic.line}-${diagnostic.message}-${index}`}
-                    onClick={() => navigateToDiagnostic(diagnostic)}
-                  >
-                    <strong>Line {diagnostic.line}</strong>
-                    <span>{diagnostic.message}</span>
-                  </button>
-                ))
-              ) : (
-                <span>{message}</span>
-              )}
-            </div>
           )}
         </section>
       </section>

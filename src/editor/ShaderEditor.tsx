@@ -16,17 +16,21 @@ import {
 } from "@codemirror/language";
 import { setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { highlightSelectionMatches, openSearchPanel, searchKeymap } from "@codemirror/search";
-import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, RangeSet, type Extension } from "@codemirror/state";
 import {
+  Decoration,
   drawSelection,
   dropCursor,
   EditorView,
+  GutterMarker,
   highlightActiveLine,
   highlightActiveLineGutter,
   highlightSpecialChars,
   hoverTooltip,
   keymap,
+  lineNumberMarkers,
   lineNumbers,
+  WidgetType,
 } from "@codemirror/view";
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import type { ShaderDiagnostic } from "../renderer/diagnostics.ts";
@@ -44,10 +48,12 @@ type ShaderEditorProps = {
   preferences: EditorPreferences;
   searchRequest: number;
   onReferenceChange: (reference: GlslReferenceEntry | null) => void;
+  expandedDiagnosticLine: number | null;
+  onDiagnosticLineClick: (line: number) => void;
+  onCloseDiagnostic: () => void;
 };
 
 const editorCore: Extension = [
-  lineNumbers(),
   highlightActiveLineGutter(),
   highlightSpecialChars(),
   history(),
@@ -70,6 +76,105 @@ const editorCore: Extension = [
     ...completionKeymap,
   ]),
 ];
+
+class ErrorLineNumberMarker extends GutterMarker {
+  elementClass = "cm-errorLineNumber";
+}
+
+const errorLineNumberMarker = new ErrorLineNumberMarker();
+
+class InlineDiagnosticWidget extends WidgetType {
+  readonly line: number;
+  readonly messages: readonly string[];
+  readonly onClose: () => void;
+
+  constructor(line: number, messages: readonly string[], onClose: () => void) {
+    super();
+    this.line = line;
+    this.messages = messages;
+    this.onClose = onClose;
+  }
+
+  eq(other: InlineDiagnosticWidget) {
+    return (
+      this.line === other.line &&
+      this.messages.length === other.messages.length &&
+      this.messages.every((message, index) => message === other.messages[index])
+    );
+  }
+
+  toDOM() {
+    const section = document.createElement("section");
+    section.className = "cm-inline-diagnostics";
+    section.setAttribute("role", "status");
+
+    const header = document.createElement("header");
+    const title = document.createElement("strong");
+    title.textContent = `Line ${this.line}`;
+    const count = document.createElement("span");
+    count.textContent = `${this.messages.length} ${this.messages.length === 1 ? "error" : "errors"}`;
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "cm-inline-diagnostics-close";
+    close.setAttribute("aria-label", `Hide errors for line ${this.line}`);
+    close.textContent = "×";
+    close.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.onClose();
+    });
+    header.append(title, count, close);
+
+    const list = document.createElement("div");
+    list.className = "cm-inline-diagnostics-list";
+    for (const message of this.messages) {
+      const item = document.createElement("p");
+      item.textContent = message;
+      list.append(item);
+    }
+
+    section.append(header, list);
+    return section;
+  }
+}
+
+function createDiagnosticLineMarkers(
+  view: EditorView,
+  diagnostics: readonly ShaderDiagnostic[],
+): Extension {
+  const lines = [...new Set(diagnostics.map((diagnostic) => diagnostic.line))].sort(
+    (left, right) => left - right,
+  );
+  const markers = lines.map((lineNumber) => {
+    const safeLine = Math.min(Math.max(lineNumber, 1), view.state.doc.lines);
+    return errorLineNumberMarker.range(view.state.doc.line(safeLine).from);
+  });
+  return lineNumberMarkers.of(RangeSet.of(markers, true));
+}
+
+function createInlineDiagnostic(
+  view: EditorView,
+  lineNumber: number | null,
+  diagnostics: readonly ShaderDiagnostic[],
+  onClose: () => void,
+): Extension {
+  if (lineNumber === null) return [];
+  const messages = diagnostics
+    .filter((diagnostic) => diagnostic.line === lineNumber)
+    .map((diagnostic) => diagnostic.message);
+  if (messages.length === 0) return [];
+
+  const safeLine = Math.min(Math.max(lineNumber, 1), view.state.doc.lines);
+  const line = view.state.doc.line(safeLine);
+  const decorations = Decoration.set([
+    Decoration.widget({
+      widget: new InlineDiagnosticWidget(lineNumber, messages, onClose),
+      block: true,
+      side: 1,
+    }).range(line.to),
+  ]);
+  return EditorView.decorations.of(decorations);
+}
 
 function createCompletionExtension(preferences: EditorPreferences): Extension {
   if (preferences.completionMode === "off") return [];
@@ -125,20 +230,31 @@ export function ShaderEditor({
   preferences,
   searchRequest,
   onReferenceChange,
+  expandedDiagnosticLine,
+  onDiagnosticLineClick,
+  onCloseDiagnostic,
 }: ShaderEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const onRunRef = useRef(onRun);
   const onReferenceChangeRef = useRef(onReferenceChange);
+  const onDiagnosticLineClickRef = useRef(onDiagnosticLineClick);
+  const onCloseDiagnosticRef = useRef(onCloseDiagnostic);
+  const diagnosticsRef = useRef(diagnostics);
   const preferencesRef = useRef(preferences);
   const appearanceCompartment = useRef(new Compartment());
   const wrappingCompartment = useRef(new Compartment());
   const completionCompartment = useRef(new Compartment());
   const inlineDocumentationCompartment = useRef(new Compartment());
+  const diagnosticLineMarkersCompartment = useRef(new Compartment());
+  const inlineDiagnosticCompartment = useRef(new Compartment());
   onChangeRef.current = onChange;
   onRunRef.current = onRun;
   onReferenceChangeRef.current = onReferenceChange;
+  onDiagnosticLineClickRef.current = onDiagnosticLineClick;
+  onCloseDiagnosticRef.current = onCloseDiagnostic;
+  diagnosticsRef.current = diagnostics;
   preferencesRef.current = preferences;
   const palette = getEditorTheme(preferences.theme).palette;
   const hostStyle = useMemo(
@@ -158,6 +274,19 @@ export function ShaderEditor({
       doc: value,
       extensions: [
         editorCore,
+        lineNumbers({
+          domEventHandlers: {
+            click: (view, line, event) => {
+              const lineNumber = view.state.doc.lineAt(line.from).number;
+              if (!diagnosticsRef.current.some((diagnostic) => diagnostic.line === lineNumber)) {
+                return false;
+              }
+              event.preventDefault();
+              onDiagnosticLineClickRef.current(lineNumber);
+              return true;
+            },
+          },
+        }),
         cpp(),
         appearanceCompartment.current.of(createEditorAppearance(preferences)),
         wrappingCompartment.current.of(preferences.lineWrapping ? EditorView.lineWrapping : []),
@@ -165,6 +294,8 @@ export function ShaderEditor({
         inlineDocumentationCompartment.current.of(
           createInlineDocumentationExtension(preferences.inlineDocumentation),
         ),
+        diagnosticLineMarkersCompartment.current.of([]),
+        inlineDiagnosticCompartment.current.of([]),
         EditorView.contentAttributes.of({
           "aria-label": "GLSL shader code editor",
           autocapitalize: "off",
@@ -253,7 +384,24 @@ export function ShaderEditor({
       };
     });
     view.dispatch(setDiagnostics(view.state, mapped));
-  }, [diagnostics]);
+    view.dispatch({
+      effects: diagnosticLineMarkersCompartment.current.reconfigure(
+        createDiagnosticLineMarkers(view, diagnostics),
+      ),
+    });
+  }, [diagnostics, value]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: inlineDiagnosticCompartment.current.reconfigure(
+        createInlineDiagnostic(view, expandedDiagnosticLine, diagnostics, () =>
+          onCloseDiagnosticRef.current(),
+        ),
+      ),
+    });
+  }, [diagnostics, expandedDiagnosticLine, value]);
 
   useEffect(() => {
     const view = viewRef.current;
