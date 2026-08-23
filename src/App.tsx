@@ -13,11 +13,16 @@ import {
   type EditorPreferences,
 } from "./editor/editorPreferences.ts";
 import { GlslDocsPanel } from "./editor/GlslDocsPanel.tsx";
+import {
+  getAdjacentDiagnosticLine,
+  toggleDiagnosticDisclosure,
+} from "./editor/diagnosticDisclosure.ts";
 import type { GlslReferenceEntry } from "./editor/glslCatalog.ts";
 import { ShaderEditor } from "./editor/ShaderEditor.tsx";
 import { ExportPanel } from "./export/ExportPanel.tsx";
 import { useVisualViewport } from "./hooks/useVisualViewport.ts";
 import { LibraryPanel, SAVE_STATUS_LABELS } from "./library/LibraryPanel.tsx";
+import { createPlaybackRestart, togglePlaybackToolbar } from "./playback/playbackControls.ts";
 import { PwaPrompt } from "./pwa/PwaPrompt.tsx";
 import { usePwa } from "./pwa/usePwa.ts";
 import { useStorageHealth } from "./pwa/useStorageHealth.ts";
@@ -73,6 +78,7 @@ export function App() {
   const [topbarCollapsed, setTopbarCollapsed] = useState(false);
   const [previewToolbarCollapsed, setPreviewToolbarCollapsed] = useState(false);
   const [expandedDiagnosticLine, setExpandedDiagnosticLine] = useState<number | null>(null);
+  const [rawCompilerErrorOpen, setRawCompilerErrorOpen] = useState(false);
   const [paused, setPaused] = useState(false);
   const [playbackTime, setPlaybackTime] = useState(0);
   const [playbackRange, setPlaybackRange] = useState(DEFAULT_PLAYBACK_RANGE);
@@ -113,10 +119,17 @@ export function App() {
   }, [editorPreferences]);
 
   useEffect(() => {
+    if (status !== "error") {
+      setExpandedDiagnosticLine(null);
+      setRawCompilerErrorOpen(false);
+      return;
+    }
+
+    if (diagnostics.length > 0) setRawCompilerErrorOpen(false);
+    else setExpandedDiagnosticLine(null);
     if (
-      status !== "error" ||
-      (expandedDiagnosticLine !== null &&
-        !diagnostics.some((diagnostic) => diagnostic.line === expandedDiagnosticLine))
+      expandedDiagnosticLine !== null &&
+      !diagnostics.some((diagnostic) => diagnostic.line === expandedDiagnosticLine)
     ) {
       setExpandedDiagnosticLine(null);
     }
@@ -223,8 +236,10 @@ export function App() {
 
   const restartPlayback = () => {
     resumeAfterScrubRef.current = false;
-    seekPlayback(0);
-    setPaused(false);
+    const restarted = createPlaybackRestart(playbackSeekRequest);
+    setPlaybackTime(restarted.playbackTime);
+    setPaused(restarted.paused);
+    setPlaybackSeekRequest(restarted.seekRequest);
   };
 
   const beginPlaybackScrub = () => {
@@ -255,23 +270,29 @@ export function App() {
     }
   };
 
-  const navigateToDiagnostic = (diagnostic: ShaderDiagnostic) => {
+  const navigateToDiagnosticLine = (line: number) => {
     setMobilePane("code");
-    setExpandedDiagnosticLine(diagnostic.line);
+    setRawCompilerErrorOpen(false);
+    setExpandedDiagnosticLine(line);
     setNavigationTarget((current) => ({
-      line: diagnostic.line,
+      line,
       request: (current?.request ?? 0) + 1,
     }));
   };
 
   const toggleDiagnosticDetails = () => {
-    if (expandedDiagnosticLine !== null) {
-      setExpandedDiagnosticLine(null);
-      return;
-    }
+    const result = toggleDiagnosticDisclosure(
+      { expandedLine: expandedDiagnosticLine, rawMessageOpen: rawCompilerErrorOpen },
+      diagnostics,
+    );
+    setExpandedDiagnosticLine(result.state.expandedLine);
+    setRawCompilerErrorOpen(result.state.rawMessageOpen);
+    if (result.navigationLine !== null) navigateToDiagnosticLine(result.navigationLine);
+  };
 
-    const firstDiagnostic = diagnostics[0];
-    if (firstDiagnostic) navigateToDiagnostic(firstDiagnostic);
+  const navigateAdjacentDiagnostic = (direction: -1 | 1) => {
+    const line = getAdjacentDiagnosticLine(diagnostics, expandedDiagnosticLine, direction);
+    if (line !== null) navigateToDiagnosticLine(line);
   };
 
   const openLibrary = () => {
@@ -451,7 +472,7 @@ export function App() {
               <button
                 className="preview-control preview-toolbar-toggle"
                 type="button"
-                onClick={() => setPreviewToolbarCollapsed((value) => !value)}
+                onClick={() => setPreviewToolbarCollapsed(togglePlaybackToolbar)}
                 aria-label={
                   previewToolbarCollapsed ? "Show playback controls" : "Hide playback controls"
                 }
@@ -468,7 +489,10 @@ export function App() {
           </div>
         </section>
 
-        <section className="code-pane" aria-label="Code panel">
+        <section
+          className={`code-pane ${rawCompilerErrorOpen ? "code-pane--compiler-error-open" : ""}`}
+          aria-label="Code panel"
+        >
           <div className="panel-heading">
             <div className="panel-heading-primary">
               {topbarCollapsed && (
@@ -486,13 +510,14 @@ export function App() {
                   className="panel-error-button"
                   type="button"
                   onClick={toggleDiagnosticDetails}
-                  aria-expanded={expandedDiagnosticLine !== null}
+                  aria-expanded={expandedDiagnosticLine !== null || rawCompilerErrorOpen}
                   aria-label={`${statusText}. ${
-                    expandedDiagnosticLine === null
-                      ? "Show the first error"
-                      : "Hide inline error details"
+                    expandedDiagnosticLine !== null || rawCompilerErrorOpen
+                      ? "Hide error details"
+                      : diagnostics.length > 0
+                        ? "Show the first error"
+                        : "Show compiler error details"
                   }`}
-                  title={diagnostics.length > 0 ? undefined : message}
                 >
                   <span className="status-dot" aria-hidden="true" />
                   {diagnostics.length > 0
@@ -538,6 +563,21 @@ export function App() {
               </button>
             </div>
           </div>
+          {rawCompilerErrorOpen && status === "error" && diagnostics.length === 0 && (
+            <div className="compiler-error-panel" role="alert">
+              <span>
+                <strong>Compiler error</strong>
+                <code>{message}</code>
+              </span>
+              <button
+                type="button"
+                onClick={() => setRawCompilerErrorOpen(false)}
+                aria-label="Hide compiler error details"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <ShaderEditor
             value={source}
             diagnostics={diagnostics}
@@ -549,8 +589,10 @@ export function App() {
             onReferenceChange={setCursorReference}
             expandedDiagnosticLine={expandedDiagnosticLine}
             onDiagnosticLineClick={(line) => {
+              setRawCompilerErrorOpen(false);
               setExpandedDiagnosticLine(line);
             }}
+            onNavigateDiagnostic={navigateAdjacentDiagnostic}
             onCloseDiagnostic={() => setExpandedDiagnosticLine(null)}
           />
           {cursorReference && editorPreferences.inlineDocumentation && status !== "error" && (

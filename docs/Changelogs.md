@@ -14,6 +14,10 @@ area and may summarize one or more related commits.
 - Replaced the automatically open compiler-error drawer with a compact error count in the editor
   header. Selecting it jumps to the first failure, while highlighted error line numbers reveal and
   dismiss their messages inline.
+- Preserved raw compiler logs when a browser returns an error without a source line, and added
+  focusable previous/next error controls plus F8 and Shift+F8 diagnostic navigation.
+- Added regression coverage for diagnostic disclosure and navigation, playback restart/resume, and
+  transport collapse state.
 - Added focus-aware visual-viewport keyboard detection so the phone Preview/Code tabs and their
   safe-area padding disappear while typing, allowing the editor to meet the keyboard without an
   empty gap across both overlay- and resize-based mobile browser behavior.

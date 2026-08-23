@@ -511,6 +511,10 @@ button:focus-visible,
   background: var(--panel);
 }
 
+.code-pane--compiler-error-open {
+  grid-template-rows: 61px auto minmax(0, 1fr);
+}
+
 .panel-heading {
   display: flex;
   align-items: center;
@@ -620,6 +624,58 @@ button:focus-visible,
   box-shadow: 0 0 10px rgb(255 94 87 / 55%);
 }
 
+.compiler-error-panel {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgb(255 94 87 / 24%);
+  color: #ffc3bf;
+  background: rgb(42 16 18 / 88%);
+}
+
+.compiler-error-panel > span {
+  min-width: 0;
+  display: grid;
+  flex: 1;
+  gap: 5px;
+}
+
+.compiler-error-panel strong {
+  color: #ff827b;
+  font-size: 10px;
+}
+
+.compiler-error-panel code {
+  max-height: 96px;
+  overflow: auto;
+  color: #ffc3bf;
+  font:
+    500 10px/1.45 ui-monospace,
+    monospace;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.compiler-error-panel > button {
+  min-width: 32px;
+  min-height: 32px;
+  display: grid;
+  place-items: center;
+  margin: -4px -5px -4px 0;
+  border-radius: 7px;
+  color: #e7aaa6;
+  background: transparent;
+  font-size: 18px;
+}
+
+.compiler-error-panel > button:hover,
+.compiler-error-panel > button:focus-visible {
+  color: #fff;
+  background: rgb(255 255 255 / 7%);
+}
+
 .editor-host {
   --sp-editor-background: var(--sp-editor-base-background);
 
@@ -708,10 +764,43 @@ button:focus-visible,
   color: #ff827b;
 }
 
-.cm-inline-diagnostics header span {
+.cm-inline-diagnostics-count {
   flex: 1;
   color: #d1908c;
   font-size: 9px;
+}
+
+.cm-inline-diagnostics-navigation {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: 7px;
+}
+
+.cm-inline-diagnostics-navigation button {
+  min-width: 32px;
+  min-height: 32px;
+  display: grid;
+  place-items: center;
+  color: #e7aaa6;
+  background: transparent;
+  font-size: 18px;
+}
+
+.cm-inline-diagnostics-navigation button + button {
+  border-left: 1px solid rgb(255 255 255 / 9%);
+}
+
+.cm-inline-diagnostics-navigation button:hover:not(:disabled),
+.cm-inline-diagnostics-navigation button:focus-visible {
+  color: #fff;
+  background: rgb(255 255 255 / 7%);
+}
+
+.cm-inline-diagnostics-navigation button:disabled {
+  cursor: default;
+  opacity: 0.35;
 }
 
 .cm-inline-diagnostics-close {
@@ -2590,6 +2679,10 @@ button:focus-visible,
 
   .code-pane {
     grid-template-rows: 52px minmax(0, 1fr);
+  }
+
+  .code-pane--compiler-error-open {
+    grid-template-rows: 52px auto minmax(0, 1fr);
   }
 
   .panel-heading {

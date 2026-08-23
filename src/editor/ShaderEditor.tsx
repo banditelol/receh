@@ -34,6 +34,7 @@ import {
 } from "@codemirror/view";
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import type { ShaderDiagnostic } from "../renderer/diagnostics.ts";
+import { getDiagnosticLines } from "./diagnosticDisclosure.ts";
 import type { EditorPreferences } from "./editorPreferences.ts";
 import { createEditorAppearance, getEditorTheme } from "./editorThemes.ts";
 import { type GlslReferenceEntry, getGlslReference } from "./glslCatalog.ts";
@@ -50,6 +51,7 @@ type ShaderEditorProps = {
   onReferenceChange: (reference: GlslReferenceEntry | null) => void;
   expandedDiagnosticLine: number | null;
   onDiagnosticLineClick: (line: number) => void;
+  onNavigateDiagnostic: (direction: -1 | 1) => void;
   onCloseDiagnostic: () => void;
 };
 
@@ -86,18 +88,33 @@ const errorLineNumberMarker = new ErrorLineNumberMarker();
 class InlineDiagnosticWidget extends WidgetType {
   readonly line: number;
   readonly messages: readonly string[];
+  readonly position: number;
+  readonly total: number;
+  readonly onNavigate: (direction: -1 | 1) => void;
   readonly onClose: () => void;
 
-  constructor(line: number, messages: readonly string[], onClose: () => void) {
+  constructor(
+    line: number,
+    messages: readonly string[],
+    position: number,
+    total: number,
+    onNavigate: (direction: -1 | 1) => void,
+    onClose: () => void,
+  ) {
     super();
     this.line = line;
     this.messages = messages;
+    this.position = position;
+    this.total = total;
+    this.onNavigate = onNavigate;
     this.onClose = onClose;
   }
 
   eq(other: InlineDiagnosticWidget) {
     return (
       this.line === other.line &&
+      this.position === other.position &&
+      this.total === other.total &&
       this.messages.length === other.messages.length &&
       this.messages.every((message, index) => message === other.messages[index])
     );
@@ -112,7 +129,39 @@ class InlineDiagnosticWidget extends WidgetType {
     const title = document.createElement("strong");
     title.textContent = `Line ${this.line}`;
     const count = document.createElement("span");
-    count.textContent = `${this.messages.length} ${this.messages.length === 1 ? "error" : "errors"}`;
+    count.className = "cm-inline-diagnostics-count";
+    count.textContent = `${this.position + 1} of ${this.total} · ${this.messages.length} ${
+      this.messages.length === 1 ? "error" : "errors"
+    }`;
+    const navigation = document.createElement("span");
+    navigation.className = "cm-inline-diagnostics-navigation";
+    navigation.setAttribute("role", "group");
+    navigation.setAttribute("aria-label", "Shader error navigation");
+    const previous = document.createElement("button");
+    previous.type = "button";
+    previous.disabled = this.total < 2;
+    previous.setAttribute("aria-label", "Show previous shader error");
+    previous.setAttribute("aria-keyshortcuts", "Shift+F8");
+    previous.title = "Previous error (Shift+F8)";
+    previous.textContent = "‹";
+    previous.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.onNavigate(-1);
+    });
+    const next = document.createElement("button");
+    next.type = "button";
+    next.disabled = this.total < 2;
+    next.setAttribute("aria-label", "Show next shader error");
+    next.setAttribute("aria-keyshortcuts", "F8");
+    next.title = "Next error (F8)";
+    next.textContent = "›";
+    next.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.onNavigate(1);
+    });
+    navigation.append(previous, next);
     const close = document.createElement("button");
     close.type = "button";
     close.className = "cm-inline-diagnostics-close";
@@ -123,7 +172,7 @@ class InlineDiagnosticWidget extends WidgetType {
       event.stopPropagation();
       this.onClose();
     });
-    header.append(title, count, close);
+    header.append(title, count, navigation, close);
 
     const list = document.createElement("div");
     list.className = "cm-inline-diagnostics-list";
@@ -156,6 +205,7 @@ function createInlineDiagnostic(
   view: EditorView,
   lineNumber: number | null,
   diagnostics: readonly ShaderDiagnostic[],
+  onNavigate: (direction: -1 | 1) => void,
   onClose: () => void,
 ): Extension {
   if (lineNumber === null) return [];
@@ -166,9 +216,18 @@ function createInlineDiagnostic(
 
   const safeLine = Math.min(Math.max(lineNumber, 1), view.state.doc.lines);
   const line = view.state.doc.line(safeLine);
+  const diagnosticLines = getDiagnosticLines(diagnostics);
+  const position = Math.max(0, diagnosticLines.indexOf(lineNumber));
   const decorations = Decoration.set([
     Decoration.widget({
-      widget: new InlineDiagnosticWidget(lineNumber, messages, onClose),
+      widget: new InlineDiagnosticWidget(
+        lineNumber,
+        messages,
+        position,
+        diagnosticLines.length,
+        onNavigate,
+        onClose,
+      ),
       block: true,
       side: 1,
     }).range(line.to),
@@ -232,6 +291,7 @@ export function ShaderEditor({
   onReferenceChange,
   expandedDiagnosticLine,
   onDiagnosticLineClick,
+  onNavigateDiagnostic,
   onCloseDiagnostic,
 }: ShaderEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -240,6 +300,7 @@ export function ShaderEditor({
   const onRunRef = useRef(onRun);
   const onReferenceChangeRef = useRef(onReferenceChange);
   const onDiagnosticLineClickRef = useRef(onDiagnosticLineClick);
+  const onNavigateDiagnosticRef = useRef(onNavigateDiagnostic);
   const onCloseDiagnosticRef = useRef(onCloseDiagnostic);
   const diagnosticsRef = useRef(diagnostics);
   const preferencesRef = useRef(preferences);
@@ -253,6 +314,7 @@ export function ShaderEditor({
   onRunRef.current = onRun;
   onReferenceChangeRef.current = onReferenceChange;
   onDiagnosticLineClickRef.current = onDiagnosticLineClick;
+  onNavigateDiagnosticRef.current = onNavigateDiagnostic;
   onCloseDiagnosticRef.current = onCloseDiagnostic;
   diagnosticsRef.current = diagnostics;
   preferencesRef.current = preferences;
@@ -302,12 +364,29 @@ export function ShaderEditor({
           autocomplete: "off",
           autocorrect: "off",
           spellcheck: "false",
+          "aria-keyshortcuts": "F8 Shift+F8",
         }),
         keymap.of([
           {
             key: "Mod-Enter",
             run: () => {
               onRunRef.current();
+              return true;
+            },
+          },
+          {
+            key: "F8",
+            run: () => {
+              if (diagnosticsRef.current.length === 0) return false;
+              onNavigateDiagnosticRef.current(1);
+              return true;
+            },
+          },
+          {
+            key: "Shift-F8",
+            run: () => {
+              if (diagnosticsRef.current.length === 0) return false;
+              onNavigateDiagnosticRef.current(-1);
               return true;
             },
           },
@@ -396,8 +475,12 @@ export function ShaderEditor({
     if (!view) return;
     view.dispatch({
       effects: inlineDiagnosticCompartment.current.reconfigure(
-        createInlineDiagnostic(view, expandedDiagnosticLine, diagnostics, () =>
-          onCloseDiagnosticRef.current(),
+        createInlineDiagnostic(
+          view,
+          expandedDiagnosticLine,
+          diagnostics,
+          (direction) => onNavigateDiagnosticRef.current(direction),
+          () => onCloseDiagnosticRef.current(),
         ),
       ),
     });
