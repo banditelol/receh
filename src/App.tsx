@@ -12,6 +12,7 @@ import {
   updateActivePassSource,
   updateActivePassUniformValue,
   updatePassResolutionScale,
+  updateProjectFunctionsSource,
   type PassResolutionScale,
 } from "./document/shaderDocument.ts";
 import { useShaderLibrary } from "./document/useShaderLibrary.ts";
@@ -32,6 +33,14 @@ import { useVisualViewport } from "./hooks/useVisualViewport.ts";
 import { LibraryPanel, SAVE_STATUS_LABELS } from "./library/LibraryPanel.tsx";
 import { createPlaybackRestart, togglePlaybackToolbar } from "./playback/playbackControls.ts";
 import { PassToolbar } from "./passes/PassToolbar.tsx";
+import {
+  appendFunctionTemplate,
+  collectFunctionDefinitions,
+  composeShaderSource,
+  type EditorSourceView,
+  type FunctionDefinition,
+  type FunctionScope,
+} from "./functions/functionLibrary.ts";
 import { PwaPrompt } from "./pwa/PwaPrompt.tsx";
 import { usePwa } from "./pwa/usePwa.ts";
 import { useStorageHealth } from "./pwa/useStorageHealth.ts";
@@ -39,7 +48,11 @@ import { ShaderCanvas } from "./renderer/ShaderCanvas.tsx";
 import type { ShaderDiagnostic } from "./renderer/diagnostics.ts";
 import { EditorSettingsPanel } from "./settings/EditorSettingsPanel.tsx";
 import { UniformTunerPanel } from "./uniforms/UniformTunerPanel.tsx";
-import { decodeSharedDocument, removeShareCodeFromUrl } from "./share/shareLink.ts";
+import {
+  decodeSharedDocument,
+  readShareViewFromUrl,
+  removeShareCodeFromUrl,
+} from "./share/shareLink.ts";
 import {
   bakeUniformValuesIntoSource,
   parseTunableUniforms,
@@ -65,6 +78,8 @@ export function App() {
     setDocument,
     projects,
     snapshots,
+    globalFunctionsSource,
+    setGlobalFunctionsSource,
     saveStatus,
     storageMessage,
     persistent,
@@ -107,6 +122,9 @@ export function App() {
     "functions",
   );
   const [cursorReference, setCursorReference] = useState<GlslReferenceEntry | null>(null);
+  const [cursorSymbol, setCursorSymbol] = useState<string | null>(null);
+  const [editorSourceView, setEditorSourceView] = useState<EditorSourceView>("pass");
+  const [focusedFunctionName, setFocusedFunctionName] = useState<string>();
   const [searchRequest, setSearchRequest] = useState(0);
   const [shareImportNotice, setShareImportNotice] = useState("");
   const shareImportStartedRef = useRef(false);
@@ -120,29 +138,71 @@ export function App() {
     request: number;
   } | null>(null);
   const activePass = getActivePass(document);
-  const source = activePass.source;
-  const uniformDefinitions = useMemo(() => parseTunableUniforms(source), [source]);
+  const activePassSource = activePass.source;
+  const projectFunctions = useMemo(
+    () => collectFunctionDefinitions(document.functionsSource, "project"),
+    [document.functionsSource],
+  );
+  const globalFunctions = useMemo(
+    () => collectFunctionDefinitions(globalFunctionsSource, "global"),
+    [globalFunctionsSource],
+  );
+  const visibleFunctions =
+    editorSourceView === "project"
+      ? projectFunctions
+      : editorSourceView === "global"
+        ? globalFunctions
+        : [];
+  const editorSource =
+    editorSourceView === "pass"
+      ? activePassSource
+      : editorSourceView === "project"
+        ? document.functionsSource
+        : globalFunctionsSource;
+  const additionalEditorSource =
+    editorSourceView === "pass"
+      ? `${globalFunctionsSource}\n${document.functionsSource}`
+      : editorSourceView === "project"
+        ? globalFunctionsSource
+        : document.functionsSource;
+  const editorDiagnostics = diagnostics.filter(
+    (diagnostic) => (diagnostic.sourceView ?? "pass") === editorSourceView,
+  );
+  const cursorFunction = cursorSymbol
+    ? (projectFunctions.find((item) => item.name === cursorSymbol) ??
+      globalFunctions.find((item) => item.name === cursorSymbol))
+    : undefined;
+  const uniformDefinitions = useMemo(
+    () => parseTunableUniforms(activePassSource),
+    [activePassSource],
+  );
   const shaderCanvasPasses = useMemo(
     () =>
       document.passes.map((pass) => {
         const definitions = parseTunableUniforms(pass.source);
+        const composed = composeShaderSource(
+          pass.source,
+          document.functionsSource,
+          globalFunctionsSource,
+        );
         return {
           id: pass.id,
-          source: pass.source,
+          source: composed.source,
+          lineOrigins: composed.lineOrigins,
           resolutionScale: pass.resolutionScale,
           uniforms: resolveRuntimeUniforms(definitions, pass.uniformValues),
         };
       }),
-    [document.passes],
+    [document.functionsSource, document.passes, globalFunctionsSource],
   );
   const compileFingerprint = useMemo(
     () =>
       JSON.stringify(
-        document.passes
+        shaderCanvasPasses
           .map((pass) => [pass.id, pass.source] as const)
           .sort(([left], [right]) => left.localeCompare(right)),
       ),
-    [document.passes],
+    [shaderCanvasPasses],
   );
 
   useEffect(() => {
@@ -174,11 +234,37 @@ export function App() {
 
     void decodeSharedDocument(payload)
       .then(async (sharedDocument) => {
-        const importedDocument = updateActivePassName(
-          createPortableShaderDocument(sharedDocument.source, sharedDocument.title),
-          sharedDocument.passName,
+        const bundledFunctions = [
+          sharedDocument.globalFunctionsSource
+            ? `// Shared global functions\n${sharedDocument.globalFunctionsSource}`
+            : "",
+          sharedDocument.projectFunctionsSource,
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+        const importedDocument = updateProjectFunctionsSource(
+          updateActivePassName(
+            createPortableShaderDocument(sharedDocument.source, sharedDocument.title),
+            sharedDocument.passName,
+          ),
+          bundledFunctions,
         );
+        const shareView = readShareViewFromUrl();
         await importShaderDocument(importedDocument);
+        if (shareView.view !== "pass") {
+          setEditorSourceView("project");
+          setFocusedFunctionName(shareView.functionName);
+          const definition = collectFunctionDefinitions(bundledFunctions, "project").find(
+            (item) => item.name === shareView.functionName,
+          );
+          if (definition) {
+            setNavigationTarget((current) => ({
+              line: definition.line,
+              request: (current?.request ?? 0) + 1,
+            }));
+          }
+          setMobilePane("code");
+        }
         window.history.replaceState(null, "", removeShareCodeFromUrl());
         setShareImportNotice(`“${sharedDocument.title}” added to your local library.`);
       })
@@ -229,6 +315,7 @@ export function App() {
       setHasLastGoodProgram(state.hasLastGoodProgram);
       if (state.status === "error" && state.passId) {
         setDocument((current) => setActivePass(current, state.passId!));
+        setEditorSourceView(state.diagnostics[0]?.sourceView ?? "pass");
       }
     },
     [],
@@ -253,7 +340,10 @@ export function App() {
   }, [diagnostics.length, hasLastGoodProgram, status]);
 
   const resetShader = async () => {
-    if (source !== DEFAULT_SHADER && window.confirm("Reset the shader to the starter scene?")) {
+    if (
+      activePassSource !== DEFAULT_SHADER &&
+      window.confirm("Reset the shader to the starter scene?")
+    ) {
       try {
         await createSnapshot("before-reset");
         setDocument((current) => updateActivePassSource(current, DEFAULT_SHADER));
@@ -268,7 +358,48 @@ export function App() {
   };
 
   const updateSource = (nextSource: string) => {
-    setDocument((current) => updateActivePassSource(current, nextSource));
+    if (editorSourceView === "global") {
+      setGlobalFunctionsSource(nextSource);
+    } else if (editorSourceView === "project") {
+      setDocument((current) => updateProjectFunctionsSource(current, nextSource));
+    } else {
+      setDocument((current) => updateActivePassSource(current, nextSource));
+    }
+  };
+
+  const openFunctions = (scope: FunctionScope) => {
+    setEditorSourceView(scope);
+    setFocusedFunctionName(undefined);
+    setMobilePane("code");
+  };
+
+  const jumpToFunction = (definition: FunctionDefinition) => {
+    setEditorSourceView(definition.scope);
+    setFocusedFunctionName(definition.name);
+    setMobilePane("code");
+    setNavigationTarget((current) => ({
+      line: definition.line,
+      request: (current?.request ?? 0) + 1,
+    }));
+  };
+
+  const addFunction = () => {
+    if (editorSourceView === "pass") return;
+    const oppositeFunctions = editorSourceView === "global" ? projectFunctions : globalFunctions;
+    const result = appendFunctionTemplate(
+      editorSource,
+      editorSourceView === "global" ? "globalHelper" : "projectHelper",
+      oppositeFunctions.map((item) => item.name),
+    );
+    if (editorSourceView === "global") setGlobalFunctionsSource(result.source);
+    else setDocument((current) => updateProjectFunctionsSource(current, result.source));
+    jumpToFunction({
+      name: result.name,
+      signature: `float ${result.name}(float value)`,
+      line: result.source.slice(0, result.source.indexOf(`float ${result.name}`)).split("\n")
+        .length,
+      scope: editorSourceView,
+    });
   };
 
   const seekPlayback = (time: number) => {
@@ -553,8 +684,18 @@ export function App() {
           <PassToolbar
             passes={document.passes}
             activePassId={document.activePassId}
-            onActivate={(passId) => setDocument((current) => setActivePass(current, passId))}
-            onAdd={() => setDocument(addFragmentPass)}
+            sourceView={editorSourceView}
+            functions={visibleFunctions}
+            onActivate={(passId) => {
+              setEditorSourceView("pass");
+              setFocusedFunctionName(undefined);
+              setDocument((current) => setActivePass(current, passId));
+            }}
+            onAdd={() => {
+              setEditorSourceView("pass");
+              setFocusedFunctionName(undefined);
+              setDocument(addFragmentPass);
+            }}
             onRename={(name) => setDocument((current) => updateActivePassName(current, name))}
             onMove={(direction) =>
               setDocument((current) => moveFragmentPass(current, current.activePassId, direction))
@@ -565,6 +706,9 @@ export function App() {
               )
             }
             onDelete={deleteActivePass}
+            onOpenFunctions={openFunctions}
+            onJumpToFunction={jumpToFunction}
+            onAddFunction={addFunction}
           />
           <div className="panel-heading">
             <div className="panel-heading-primary">
@@ -599,8 +743,16 @@ export function App() {
                 </button>
               ) : (
                 <span className="panel-heading-title">
-                  <span className="eyebrow">Fragment shader</span>
-                  <strong>{activePass.name}</strong>
+                  <span className="eyebrow">
+                    {editorSourceView === "pass" ? "Fragment shader" : "Function library"}
+                  </span>
+                  <strong>
+                    {editorSourceView === "pass"
+                      ? activePass.name
+                      : editorSourceView === "project"
+                        ? "Project functions"
+                        : "Global functions"}
+                  </strong>
                 </span>
               )}
             </div>
@@ -652,14 +804,16 @@ export function App() {
             </div>
           )}
           <ShaderEditor
-            value={source}
-            diagnostics={diagnostics}
+            value={editorSource}
+            additionalSource={additionalEditorSource}
+            diagnostics={editorDiagnostics}
             onChange={updateSource}
             onRun={() => setCompileRequest((request) => request + 1)}
             navigationTarget={navigationTarget}
             preferences={editorPreferences}
             searchRequest={searchRequest}
             onReferenceChange={setCursorReference}
+            onSymbolChange={setCursorSymbol}
             expandedDiagnosticLine={expandedDiagnosticLine}
             onDiagnosticLineClick={(line) => {
               setRawCompilerErrorOpen(false);
@@ -668,7 +822,18 @@ export function App() {
             onNavigateDiagnostic={navigateAdjacentDiagnostic}
             onCloseDiagnostic={() => setExpandedDiagnosticLine(null)}
           />
-          {cursorReference && editorPreferences.inlineDocumentation && status !== "error" && (
+          {cursorFunction && editorPreferences.inlineDocumentation && status !== "error" ? (
+            <button
+              className="editor-reference-chip"
+              type="button"
+              onClick={() => jumpToFunction(cursorFunction)}
+              aria-label={`Jump to ${cursorFunction.name} in ${cursorFunction.scope} functions`}
+            >
+              <strong>{cursorFunction.name}</strong>
+              <code>{cursorFunction.signature}</code>
+              <span>Jump · {cursorFunction.scope}</span>
+            </button>
+          ) : cursorReference && editorPreferences.inlineDocumentation && status !== "error" ? (
             <button
               className="editor-reference-chip"
               type="button"
@@ -679,7 +844,7 @@ export function App() {
               <code>{cursorReference.signatures[0]}</code>
               <span>Inspect</span>
             </button>
-          )}
+          ) : null}
         </section>
       </section>
 
@@ -708,6 +873,11 @@ export function App() {
       {exportOpen && (
         <ExportPanel
           document={document}
+          globalFunctionsSource={globalFunctionsSource}
+          shareView={{
+            view: editorSourceView,
+            functionName: focusedFunctionName,
+          }}
           canRender={status === "ready"}
           passes={shaderCanvasPasses}
           onClose={() => setExportOpen(false)}

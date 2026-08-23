@@ -3,7 +3,7 @@ import { type ShaderDocument } from "../document/shaderDocument.ts";
 import type { ShaderPipelinePass } from "../renderer/passPipeline.ts";
 import { createProjectFile, createSourceFile, downloadBlob, safeFilename } from "./downloads.ts";
 import { renderShaderPng } from "./renderExport.ts";
-import { createShareUrl } from "../share/shareLink.ts";
+import { createShareUrl, type ShareView } from "../share/shareLink.ts";
 import {
   clampStoryDuration,
   getStoryVideoCapability,
@@ -15,12 +15,21 @@ import {
 
 type ExportPanelProps = {
   document: ShaderDocument;
+  globalFunctionsSource: string;
+  shareView: ShareView;
   canRender: boolean;
   passes: readonly ShaderPipelinePass[];
   onClose: () => void;
 };
 
-export function ExportPanel({ document, canRender, passes, onClose }: ExportPanelProps) {
+export function ExportPanel({
+  document,
+  globalFunctionsSource,
+  shareView,
+  canRender,
+  passes,
+  onClose,
+}: ExportPanelProps) {
   const [busy, setBusy] = useState<"image" | "video" | null>(null);
   const [error, setError] = useState("");
   const [duration, setDuration] = useState(15);
@@ -66,7 +75,7 @@ export function ExportPanel({ document, canRender, passes, onClose }: ExportPane
     setError("");
     setShareStatus("");
     try {
-      const url = await createShareUrl(document);
+      const url = await createShareUrl(document, { globalFunctionsSource, shareView });
       setShareUrl(url);
       if (navigator.share) {
         await navigator.share({ title: `${document.title} · receh`, url });

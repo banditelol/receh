@@ -5,7 +5,7 @@ import {
   type ShaderUniformValues,
 } from "../uniforms/uniformTypes.ts";
 
-export const SHADER_DOCUMENT_VERSION = 3 as const;
+export const SHADER_DOCUMENT_VERSION = 4 as const;
 
 export type ShaderLanguage = "glsl";
 export type ShaderPassKind = "fragment";
@@ -25,6 +25,7 @@ export type ShaderDocument = {
   schemaVersion: typeof SHADER_DOCUMENT_VERSION;
   id: string;
   title: string;
+  functionsSource: string;
   activePassId: string;
   passes: [ShaderPass, ...ShaderPass[]];
 };
@@ -69,6 +70,7 @@ export function createShaderDocument(source = DEFAULT_SHADER): ShaderDocument {
     schemaVersion: SHADER_DOCUMENT_VERSION,
     id: DEFAULT_DOCUMENT_ID,
     title: "Untitled shader",
+    functionsSource: "",
     activePassId: DEFAULT_PASS_ID,
     passes: [
       {
@@ -95,6 +97,7 @@ export function createPortableShaderDocument(
     schemaVersion: SHADER_DOCUMENT_VERSION,
     id: documentId,
     title,
+    functionsSource: "",
     activePassId: passId,
     passes: [
       {
@@ -145,7 +148,10 @@ export function migrateShaderDocument(value: unknown): ShaderDocument {
   }
 
   if (
-    (value.schemaVersion !== 1 && value.schemaVersion !== 2 && value.schemaVersion !== 3) ||
+    (value.schemaVersion !== 1 &&
+      value.schemaVersion !== 2 &&
+      value.schemaVersion !== 3 &&
+      value.schemaVersion !== 4) ||
     !Array.isArray(value.passes)
   ) {
     return createShaderDocument();
@@ -159,6 +165,7 @@ export function migrateShaderDocument(value: unknown): ShaderDocument {
     schemaVersion: SHADER_DOCUMENT_VERSION,
     id: stringOr(value.id, DEFAULT_DOCUMENT_ID),
     title: stringOr(value.title, "Untitled shader"),
+    functionsSource: typeof value.functionsSource === "string" ? value.functionsSource : "",
     activePassId: passes.some((pass) => pass.id === activePassId) ? activePassId : passes[0].id,
     passes: passes as [ShaderPass, ...ShaderPass[]],
   };
@@ -186,6 +193,7 @@ export function parseImportedShaderDocument(serialized: string): ShaderDocument 
     value.schemaVersion !== 0 &&
     value.schemaVersion !== 1 &&
     value.schemaVersion !== 2 &&
+    value.schemaVersion !== 3 &&
     value.schemaVersion !== SHADER_DOCUMENT_VERSION
   ) {
     const version =
@@ -197,6 +205,7 @@ export function parseImportedShaderDocument(serialized: string): ShaderDocument 
   if (
     value.schemaVersion === 1 ||
     value.schemaVersion === 2 ||
+    value.schemaVersion === 3 ||
     value.schemaVersion === SHADER_DOCUMENT_VERSION
   ) {
     if (!Array.isArray(value.passes) || value.passes.length === 0) {
@@ -237,6 +246,13 @@ export function updateActivePassName(document: ShaderDocument, name: string): Sh
       pass.id === document.activePassId ? { ...pass, name: nextName } : pass,
     ) as [ShaderPass, ...ShaderPass[]],
   };
+}
+
+export function updateProjectFunctionsSource(
+  document: ShaderDocument,
+  functionsSource: string,
+): ShaderDocument {
+  return document.functionsSource === functionsSource ? document : { ...document, functionsSource };
 }
 
 export function setActivePass(document: ShaderDocument, passId: string): ShaderDocument {

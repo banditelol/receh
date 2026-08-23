@@ -31,7 +31,7 @@ describe("shader document storage", () => {
     saveShaderDocument(storage, document);
 
     expect(storage.getItem(LEGACY_SOURCE_STORAGE_KEY)).toBeNull();
-    expect(storage.getItem(DOCUMENT_STORAGE_KEY)).toContain('"schemaVersion":3');
+    expect(storage.getItem(DOCUMENT_STORAGE_KEY)).toContain('"schemaVersion":4');
   });
 
   it("distinguishes an empty legacy store from a starter document", () => {

@@ -12,7 +12,7 @@ describe("export downloads", () => {
     const file = createProjectFile(createShaderDocument("shader source"));
 
     expect(file.filename).toBe("untitled-shader.receh.json");
-    expect(await file.blob.text()).toContain('"schemaVersion": 3');
+    expect(await file.blob.text()).toContain('"schemaVersion": 4');
   });
 
   it("exports the active GLSL pass", async () => {

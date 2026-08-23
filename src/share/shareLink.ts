@@ -1,6 +1,7 @@
 import { getActivePass, type ShaderDocument } from "../document/shaderDocument.ts";
 
-const SHARE_FORMAT_VERSION = "v2";
+const SHARE_FORMAT_VERSION = "v3";
+const DOCUMENT_SHARE_FORMAT_VERSION = "v2";
 const LEGACY_SHARE_FORMAT_VERSION = "v1";
 const COMPRESSED_ENCODING = "g";
 const UNCOMPRESSED_ENCODING = "u";
@@ -15,6 +16,19 @@ export type SharedShaderDocument = {
   title: string;
   passName: string;
   source: string;
+  projectFunctionsSource: string;
+  globalFunctionsSource: string;
+};
+
+export type ShareView = {
+  view: "pass" | "project" | "global";
+  functionName?: string;
+};
+
+export type CreateShareUrlOptions = {
+  globalFunctionsSource?: string;
+  shareView?: ShareView;
+  currentHref?: string;
 };
 
 function bytesToBase64Url(bytes: Uint8Array) {
@@ -91,7 +105,8 @@ function decodeUtf8(bytes: Uint8Array) {
   }
 }
 
-function validateSource(source: string) {
+function validateSource(source: unknown) {
+  if (typeof source !== "string") throw new Error("This share link is malformed.");
   if (new TextEncoder().encode(source).byteLength > MAX_SHARED_SOURCE_BYTES) {
     throw new Error("This shader is too large for a link. Export a project file instead.");
   }
@@ -122,7 +137,9 @@ async function decodePayload(payload: string) {
 
   const [version, encoding, encoded, ...extra] = payload.split(".");
   if (
-    (version !== SHARE_FORMAT_VERSION && version !== LEGACY_SHARE_FORMAT_VERSION) ||
+    (version !== SHARE_FORMAT_VERSION &&
+      version !== DOCUMENT_SHARE_FORMAT_VERSION &&
+      version !== LEGACY_SHARE_FORMAT_VERSION) ||
     !encoded ||
     extra.length > 0
   ) {
@@ -142,12 +159,16 @@ async function decodePayload(payload: string) {
   return { version, text: decodeUtf8(decoded) };
 }
 
-export async function encodeSharedDocument(document: ShaderDocument) {
+export async function encodeSharedDocument(document: ShaderDocument, globalFunctionsSource = "") {
   const pass = getActivePass(document);
   const title = validateLabel(document.title, "Untitled shader", MAX_SHARED_TITLE_CHARACTERS);
   const passName = validateLabel(pass.name, "main.frag", MAX_SHARED_PASS_NAME_CHARACTERS);
   const source = validateSource(pass.source);
-  const bytes = new TextEncoder().encode(JSON.stringify([title, passName, source]));
+  const projectFunctions = validateSource(document.functionsSource);
+  const globalFunctions = validateSource(globalFunctionsSource);
+  const bytes = new TextEncoder().encode(
+    JSON.stringify([title, passName, source, projectFunctions, globalFunctions]),
+  );
   if (bytes.byteLength > MAX_SHARED_DOCUMENT_BYTES) {
     throw new Error("This shader is too large for a link. Export a project file instead.");
   }
@@ -161,6 +182,8 @@ export async function decodeSharedDocument(payload: string): Promise<SharedShade
       title: "Shared shader",
       passName: "main.frag",
       source: validateSource(decoded.text),
+      projectFunctionsSource: "",
+      globalFunctionsSource: "",
     };
   }
 
@@ -170,7 +193,8 @@ export async function decodeSharedDocument(payload: string): Promise<SharedShade
   } catch {
     throw new Error("This share link does not contain a valid receh document.");
   }
-  if (!Array.isArray(value) || value.length !== 3) {
+  const expectedLength = decoded.version === DOCUMENT_SHARE_FORMAT_VERSION ? 3 : 5;
+  if (!Array.isArray(value) || value.length !== expectedLength) {
     throw new Error("This share link does not contain a valid receh document.");
   }
   if (typeof value[2] !== "string") throw new Error("This share link is malformed.");
@@ -178,18 +202,50 @@ export async function decodeSharedDocument(payload: string): Promise<SharedShade
     title: validateLabel(value[0], "Untitled shader", MAX_SHARED_TITLE_CHARACTERS),
     passName: validateLabel(value[1], "main.frag", MAX_SHARED_PASS_NAME_CHARACTERS),
     source: validateSource(value[2]),
+    projectFunctionsSource:
+      decoded.version === DOCUMENT_SHARE_FORMAT_VERSION ? "" : validateSource(value[3]),
+    globalFunctionsSource:
+      decoded.version === DOCUMENT_SHARE_FORMAT_VERSION ? "" : validateSource(value[4]),
   };
 }
 
-export async function createShareUrl(document: ShaderDocument, currentHref = window.location.href) {
-  const url = new URL(currentHref);
-  url.searchParams.set("code", await encodeSharedDocument(document));
+export async function createShareUrl(
+  document: ShaderDocument,
+  options: CreateShareUrlOptions = {},
+) {
+  const url = new URL(options.currentHref ?? window.location.href);
+  url.searchParams.set("code", await encodeSharedDocument(document, options.globalFunctionsSource));
+  const view = options.shareView?.view ?? "pass";
+  if (view === "pass") {
+    url.searchParams.delete("view");
+    url.searchParams.delete("scope");
+    url.searchParams.delete("fn");
+  } else {
+    url.searchParams.set("view", "functions");
+    url.searchParams.set("scope", view);
+    if (options.shareView?.functionName) {
+      url.searchParams.set("fn", options.shareView.functionName);
+    } else {
+      url.searchParams.delete("fn");
+    }
+  }
   url.hash = "";
   return url.toString();
+}
+
+export function readShareViewFromUrl(currentHref = window.location.href): ShareView {
+  const params = new URL(currentHref).searchParams;
+  if (params.get("view") !== "functions") return { view: "pass" };
+  const scope = params.get("scope") === "global" ? "global" : "project";
+  const functionName = params.get("fn")?.trim();
+  return { view: scope, ...(functionName ? { functionName } : {}) };
 }
 
 export function removeShareCodeFromUrl(currentHref = window.location.href) {
   const url = new URL(currentHref);
   url.searchParams.delete("code");
+  url.searchParams.delete("view");
+  url.searchParams.delete("scope");
+  url.searchParams.delete("fn");
   return url.toString();
 }

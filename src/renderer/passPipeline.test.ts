@@ -12,6 +12,7 @@ function createPass(id: string, resolutionScale: 0.25 | 0.5 | 1): CompiledPipeli
   return {
     id,
     source: "",
+    lineOrigins: [],
     resolutionScale,
     uniforms: [],
     program: { id } as unknown as WebGLProgram,

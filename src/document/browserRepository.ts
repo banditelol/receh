@@ -71,6 +71,10 @@ class BrowserShaderRepository implements ShaderRepository {
     return this.#request({ command: "save-document", payload: { document } });
   }
 
+  saveGlobalFunctionsSource(source: string): Promise<void> {
+    return this.#request<undefined>({ command: "save-global-functions", payload: { source } });
+  }
+
   importDocument(document: ShaderDocument): Promise<ShaderDocument> {
     return this.#request({ command: "import-document", payload: { document } });
   }

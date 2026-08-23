@@ -39,10 +39,15 @@ import { getDiagnosticScrollMargin } from "./diagnosticNavigation.ts";
 import type { EditorPreferences } from "./editorPreferences.ts";
 import { createEditorAppearance, getEditorTheme } from "./editorThemes.ts";
 import { type GlslReferenceEntry, getGlslReference } from "./glslCatalog.ts";
-import { findGlslReferenceAtCursor, glslCompletions } from "./glslLanguage.ts";
+import {
+  createGlslCompletions,
+  findGlslReferenceAtCursor,
+  findGlslSymbolAtCursor,
+} from "./glslLanguage.ts";
 
 type ShaderEditorProps = {
   value: string;
+  additionalSource: string;
   diagnostics: ShaderDiagnostic[];
   onChange: (value: string) => void;
   onRun: () => void;
@@ -50,6 +55,7 @@ type ShaderEditorProps = {
   preferences: EditorPreferences;
   searchRequest: number;
   onReferenceChange: (reference: GlslReferenceEntry | null) => void;
+  onSymbolChange: (name: string | null) => void;
   expandedDiagnosticLine: number | null;
   onDiagnosticLineClick: (line: number) => void;
   onNavigateDiagnostic: (direction: -1 | 1) => void;
@@ -236,10 +242,13 @@ function createInlineDiagnostic(
   return EditorView.decorations.of(decorations);
 }
 
-function createCompletionExtension(preferences: EditorPreferences): Extension {
+function createCompletionExtension(
+  preferences: EditorPreferences,
+  additionalSource: string,
+): Extension {
   if (preferences.completionMode === "off") return [];
   return autocompletion({
-    override: [glslCompletions],
+    override: [createGlslCompletions(additionalSource)],
     activateOnTyping: preferences.completionMode === "typing",
   });
 }
@@ -283,6 +292,7 @@ function createInlineDocumentationExtension(enabled: boolean): Extension {
 
 export function ShaderEditor({
   value,
+  additionalSource,
   diagnostics,
   onChange,
   onRun,
@@ -290,6 +300,7 @@ export function ShaderEditor({
   preferences,
   searchRequest,
   onReferenceChange,
+  onSymbolChange,
   expandedDiagnosticLine,
   onDiagnosticLineClick,
   onNavigateDiagnostic,
@@ -300,6 +311,7 @@ export function ShaderEditor({
   const onChangeRef = useRef(onChange);
   const onRunRef = useRef(onRun);
   const onReferenceChangeRef = useRef(onReferenceChange);
+  const onSymbolChangeRef = useRef(onSymbolChange);
   const onDiagnosticLineClickRef = useRef(onDiagnosticLineClick);
   const onNavigateDiagnosticRef = useRef(onNavigateDiagnostic);
   const onCloseDiagnosticRef = useRef(onCloseDiagnostic);
@@ -314,6 +326,7 @@ export function ShaderEditor({
   onChangeRef.current = onChange;
   onRunRef.current = onRun;
   onReferenceChangeRef.current = onReferenceChange;
+  onSymbolChangeRef.current = onSymbolChange;
   onDiagnosticLineClickRef.current = onDiagnosticLineClick;
   onNavigateDiagnosticRef.current = onNavigateDiagnostic;
   onCloseDiagnosticRef.current = onCloseDiagnostic;
@@ -353,7 +366,7 @@ export function ShaderEditor({
         cpp(),
         appearanceCompartment.current.of(createEditorAppearance(preferences)),
         wrappingCompartment.current.of(preferences.lineWrapping ? EditorView.lineWrapping : []),
-        completionCompartment.current.of(createCompletionExtension(preferences)),
+        completionCompartment.current.of(createCompletionExtension(preferences, additionalSource)),
         inlineDocumentationCompartment.current.of(
           createInlineDocumentationExtension(preferences.inlineDocumentation),
         ),
@@ -406,6 +419,9 @@ export function ShaderEditor({
                   ) ?? null)
                 : null,
             );
+            onSymbolChangeRef.current(
+              findGlslSymbolAtCursor(update.state.doc.toString(), selection.head, selectedText),
+            );
           }
         }),
       ],
@@ -428,14 +444,16 @@ export function ShaderEditor({
         wrappingCompartment.current.reconfigure(
           preferences.lineWrapping ? EditorView.lineWrapping : [],
         ),
-        completionCompartment.current.reconfigure(createCompletionExtension(preferences)),
+        completionCompartment.current.reconfigure(
+          createCompletionExtension(preferences, additionalSource),
+        ),
         inlineDocumentationCompartment.current.reconfigure(
           createInlineDocumentationExtension(preferences.inlineDocumentation),
         ),
       ],
     });
     if (!preferences.inlineDocumentation) onReferenceChangeRef.current(null);
-  }, [preferences]);
+  }, [additionalSource, preferences]);
 
   useEffect(() => {
     const view = viewRef.current;

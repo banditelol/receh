@@ -5,6 +5,7 @@ import {
   type CompileRevision,
 } from "./compileScheduler.ts";
 import { parseShaderDiagnostics, type ShaderDiagnostic } from "./diagnostics.ts";
+import { mapComposedDiagnostics } from "../functions/functionLibrary.ts";
 import {
   disposePipelineTargets,
   renderPassPipelineFrame,
@@ -350,8 +351,10 @@ export function ShaderCanvas({
           return;
         }
         if (!result.program) {
+          const pass = passesRef.current.find((candidate) => candidate.id === revision.passId);
+          const diagnostics = parseShaderDiagnostics(result.log);
           errorsRef.current.set(revision.passId, {
-            diagnostics: parseShaderDiagnostics(result.log),
+            diagnostics: pass ? mapComposedDiagnostics(diagnostics, pass.lineOrigins) : diagnostics,
             message: result.log,
           });
           return;

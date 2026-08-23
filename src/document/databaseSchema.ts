@@ -1,5 +1,5 @@
 export const SHADER_POCKET_DATABASE_FILENAME = "/shader-pocket.sqlite3";
-export const SHADER_POCKET_DATABASE_VERSION = 4;
+export const SHADER_POCKET_DATABASE_VERSION = 5;
 export const SHADER_POCKET_APPLICATION_ID = 0x53504b54;
 
 export const CREATE_DATABASE_SCHEMA_SQL = `
@@ -8,6 +8,7 @@ export const CREATE_DATABASE_SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS projects (
     id TEXT PRIMARY KEY NOT NULL,
     title TEXT NOT NULL,
+    functions_source TEXT NOT NULL DEFAULT '',
     active_pass_id TEXT NOT NULL,
     schema_version INTEGER NOT NULL,
     created_at INTEGER NOT NULL,
@@ -37,6 +38,12 @@ export const CREATE_DATABASE_SCHEMA_SQL = `
     content_hash TEXT NOT NULL,
     document_json TEXT NOT NULL,
     UNIQUE(project_id, content_hash)
+  );
+
+  CREATE TABLE IF NOT EXISTS global_sources (
+    id TEXT PRIMARY KEY NOT NULL,
+    source TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
   );
 
   CREATE INDEX IF NOT EXISTS projects_updated_at_idx ON projects(updated_at DESC);

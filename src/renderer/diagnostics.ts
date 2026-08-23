@@ -1,6 +1,7 @@
 export type ShaderDiagnostic = {
   line: number;
   message: string;
+  sourceView?: "pass" | "project" | "global";
 };
 
 const WEBGL_ERROR = /ERROR:\s*\d+:(\d+):\s*(.*)/i;

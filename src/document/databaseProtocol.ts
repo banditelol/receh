@@ -16,6 +16,7 @@ export type DatabaseRequest =
   | { id: number; command: "list-projects" }
   | { id: number; command: "load-project"; payload: { projectId: string } }
   | { id: number; command: "save-document"; payload: { document: ShaderDocument } }
+  | { id: number; command: "save-global-functions"; payload: { source: string } }
   | { id: number; command: "import-document"; payload: { document: ShaderDocument } }
   | {
       id: number;

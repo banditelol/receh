@@ -5,6 +5,24 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Project and global function libraries
+
+- Added dedicated project and global GLSL function sources alongside fragment passes, with project
+  functions stored in portable documents and global functions persisted once per local SQLite
+  library for reuse across projects.
+- Composed both function scopes into every render and export pass, mapped compiler diagnostics back
+  to their authored source, and added cross-scope completion, definition discovery, jump controls,
+  cursor-aware jump chips, and collision-safe starter functions.
+- Upgraded share links to V3 so project and global dependencies travel with a shader. Function-view
+  links retain `view`, `scope`, and `fn` query context; imported global dependencies are safely
+  bundled into the new project's portable function source instead of mutating the recipient's
+  globals. V1 and V2 links remain readable.
+- Migrated portable documents to schema V4 and SQLite libraries to schema V5, including backward
+  migration and global-source library import/export support.
+- Verified project/global editing and persistence, function creation, desktop and phone layouts,
+  and compiler source routing at 1280 × 720 and iPhone 15 viewports with no application console
+  errors.
+
 ### Ordered fragment passes
 
 - Added an ordered WebGL2 pass pipeline with reusable framebuffer textures, `u_previous` for the

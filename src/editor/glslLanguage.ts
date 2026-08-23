@@ -189,7 +189,7 @@ function uniqueCompletions(completions: readonly Completion[]) {
   return [...unique.values()];
 }
 
-export function glslCompletions(context: CompletionContext): CompletionResult | null {
+function completeGlsl(context: CompletionContext, additionalSource = ""): CompletionResult | null {
   const source = context.state.doc.toString();
   if (isInsideComment(source, context.pos)) return null;
 
@@ -216,8 +216,15 @@ export function glslCompletions(context: CompletionContext): CompletionResult | 
       detail: symbol.detail,
       boost: 110,
     }));
+    const librarySymbols = collectGlslSourceSymbols(additionalSource).map<Completion>((symbol) => ({
+      label: symbol.name,
+      type: symbol.kind,
+      detail: `${symbol.detail} · function library`,
+      boost: 100,
+    }));
     contextual = uniqueCompletions([
       ...sourceSymbols,
+      ...librarySymbols,
       ...PLATFORM_VARIABLES,
       ...REFERENCE_COMPLETIONS,
       ...TYPE_COMPLETIONS,
@@ -226,6 +233,14 @@ export function glslCompletions(context: CompletionContext): CompletionResult | 
   }
 
   return { from, options: contextual, validFor: /^[A-Za-z_]\w*$/ };
+}
+
+export function glslCompletions(context: CompletionContext) {
+  return completeGlsl(context);
+}
+
+export function createGlslCompletions(additionalSource: string) {
+  return (context: CompletionContext) => completeGlsl(context, additionalSource);
 }
 
 function wordAround(source: string, position: number) {
@@ -258,4 +273,13 @@ export function findGlslReferenceAtCursor(source: string, position: number, sele
   const selected = selectedText.trim();
   const directName = selected && selected.length < 64 ? selected : wordAround(source, position);
   return getGlslReference(directName) ?? getGlslReference(callBefore(source, position));
+}
+
+export function findGlslSymbolAtCursor(source: string, position: number, selectedText = "") {
+  const selected = selectedText.trim();
+  return (
+    (selected && selected.length < 64 ? selected : wordAround(source, position)) ||
+    callBefore(source, position) ||
+    null
+  );
 }

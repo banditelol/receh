@@ -15,6 +15,7 @@ import {
   updateActivePassUniformValue,
   updateDocumentTitle,
   updatePassResolutionScale,
+  updateProjectFunctionsSource,
 } from "./shaderDocument.ts";
 
 describe("shader document migrations", () => {
@@ -25,7 +26,7 @@ describe("shader document migrations", () => {
       source: "void main() {}",
     });
 
-    expect(document.schemaVersion).toBe(3);
+    expect(document.schemaVersion).toBe(4);
     expect(document.title).toBe("Legacy");
     expect(getActivePass(document).source).toBe("void main() {}");
   });
@@ -62,6 +63,7 @@ describe("shader document migrations", () => {
 
     expect(getActivePass(document).uniformValues).toEqual({ u_strength: 0.75 });
     expect(getActivePass(document).resolutionScale).toBe(1);
+    expect(document.functionsSource).toBe("");
   });
 
   it("falls back to a valid document for corrupt JSON", () => {
@@ -111,6 +113,14 @@ describe("shader document updates", () => {
 
     expect(getActivePass(before).uniformValues).toEqual({});
     expect(getActivePass(after).uniformValues.u_tint).toEqual([1, 0.5, 0]);
+  });
+
+  it("updates project functions without mutating the previous document", () => {
+    const before = createShaderDocument();
+    const after = updateProjectFunctionsSource(before, "float glow(float x) { return x; }");
+
+    expect(before.functionsSource).toBe("");
+    expect(after.functionsSource).toContain("float glow");
   });
 
   it("reidentifies a document and all of its passes", () => {

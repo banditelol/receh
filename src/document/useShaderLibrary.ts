@@ -32,6 +32,7 @@ export function useShaderLibrary() {
   const [document, setDocument] = useState<ShaderDocument>(readInitialDocument);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [snapshots, setSnapshots] = useState<SnapshotSummary[]>([]);
+  const [globalFunctionsSource, setGlobalFunctionsSource] = useState("");
   const [saveStatus, setSaveStatus] = useState<LibrarySaveStatus>("loading");
   const [storageMessage, setStorageMessage] = useState("");
   const [persistent, setPersistent] = useState(false);
@@ -39,10 +40,16 @@ export function useShaderLibrary() {
   const documentRef = useRef(document);
   const persistentRef = useRef(false);
   const saveRevisionRef = useRef(0);
+  const globalFunctionsSourceRef = useRef("");
+  const globalSaveRevisionRef = useRef(0);
 
   useEffect(() => {
     documentRef.current = document;
   }, [document]);
+
+  useEffect(() => {
+    globalFunctionsSourceRef.current = globalFunctionsSource;
+  }, [globalFunctionsSource]);
 
   useEffect(() => {
     let active = true;
@@ -53,6 +60,7 @@ export function useShaderLibrary() {
       .then((bootstrap) => {
         if (!active) return;
         setDocument(bootstrap.document);
+        setGlobalFunctionsSource(bootstrap.globalFunctionsSource);
         setProjects(bootstrap.projects);
         setPersistent(bootstrap.persistent);
         persistentRef.current = bootstrap.persistent;
@@ -124,6 +132,44 @@ export function useShaderLibrary() {
     }, 450);
     return () => window.clearTimeout(timer);
   }, [document, persistDocument, ready]);
+
+  const persistGlobalFunctionsSource = useCallback(
+    async (source: string) => {
+      if (!ready) return;
+      const revision = ++globalSaveRevisionRef.current;
+      setSaveStatus(persistentRef.current ? "saving" : "unavailable");
+      try {
+        await repository.saveGlobalFunctionsSource(source);
+        if (revision === globalSaveRevisionRef.current) {
+          setSaveStatus(persistentRef.current ? "saved" : "unavailable");
+          setStorageMessage(
+            persistentRef.current
+              ? "Saved in the local SQLite library."
+              : "Persistent browser storage is unavailable; edits remain in memory only.",
+          );
+        }
+      } catch (reason) {
+        if (revision === globalSaveRevisionRef.current) {
+          setSaveStatus("recovery-needed");
+          setStorageMessage(
+            reason instanceof Error
+              ? reason.message
+              : "The global function library could not be saved.",
+          );
+        }
+        throw reason;
+      }
+    },
+    [ready],
+  );
+
+  useEffect(() => {
+    if (!ready) return;
+    const timer = window.setTimeout(() => {
+      void persistGlobalFunctionsSource(globalFunctionsSource).catch(() => undefined);
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [globalFunctionsSource, persistGlobalFunctionsSource, ready]);
 
   useEffect(() => {
     if (!ready) return;
@@ -220,6 +266,7 @@ export function useShaderLibrary() {
       const result = await repository.importLibrary(await readLibraryImport(file));
       documentRef.current = result.document;
       setDocument(result.document);
+      setGlobalFunctionsSource(result.globalFunctionsSource);
       setProjects(result.projects);
       setSnapshots(await repository.listSnapshots(result.document.id));
       setStorageMessage(
@@ -236,12 +283,13 @@ export function useShaderLibrary() {
 
   const exportLibrary = useCallback(async () => {
     await persistDocument(documentRef.current);
+    await persistGlobalFunctionsSource(globalFunctionsSourceRef.current);
     const bytes = await repository.exportLibrary();
     downloadBlob(
       new Blob([bytes.slice().buffer], { type: "application/vnd.sqlite3" }),
       "receh.sqlite3",
     );
-  }, [persistDocument]);
+  }, [persistDocument, persistGlobalFunctionsSource]);
 
   const restoreSnapshot = useCallback(
     async (snapshotId: string) => {
@@ -264,6 +312,8 @@ export function useShaderLibrary() {
     setDocument,
     projects,
     snapshots,
+    globalFunctionsSource,
+    setGlobalFunctionsSource,
     saveStatus,
     storageMessage,
     persistent,

@@ -69,11 +69,14 @@ function ensureDatabaseSchema(db: Database) {
   if (version > SHADER_POCKET_DATABASE_VERSION) {
     throw new Error(`Shader library version ${version} is newer than this app supports.`);
   }
-  if (![0, 1, 2, 3, SHADER_POCKET_DATABASE_VERSION].includes(version)) {
+  if (![0, 1, 2, 3, 4, SHADER_POCKET_DATABASE_VERSION].includes(version)) {
     throw new Error(`Shader library version ${version} is not supported.`);
   }
 
   db.exec(CREATE_DATABASE_SCHEMA_SQL);
+  if (!hasTableColumn(db, "projects", "functions_source")) {
+    db.exec("ALTER TABLE projects ADD COLUMN functions_source TEXT NOT NULL DEFAULT ''");
+  }
   if (version === 1) {
     db.exec("ALTER TABLE passes ADD COLUMN uniform_values_json TEXT NOT NULL DEFAULT '{}'");
   }
@@ -91,10 +94,35 @@ function ensureDatabaseSchema(db: Database) {
   db.exec("PRAGMA foreign_keys = ON");
 }
 
-function hasTableColumn(db: Database, table: "passes" | "snapshots", columnName: string) {
+function hasTableColumn(
+  db: Database,
+  table: "projects" | "passes" | "snapshots",
+  columnName: string,
+) {
   return db
     .selectObjects(`PRAGMA table_info(${table})`)
     .some((column) => column.name === columnName);
+}
+
+function hasTable(db: Database, table: string) {
+  return (
+    db.selectValue("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", [table]) !==
+    undefined
+  );
+}
+
+function loadGlobalFunctionsSourceFrom(db: Database) {
+  if (!hasTable(db, "global_sources")) return "";
+  const source = db.selectValue("SELECT source FROM global_sources WHERE id = 'functions'");
+  return typeof source === "string" ? source : "";
+}
+
+function saveGlobalFunctionsSourceTo(db: Database, source: string) {
+  db.exec({
+    sql: `INSERT INTO global_sources (id, source, updated_at) VALUES ('functions', ?, ?)
+          ON CONFLICT(id) DO UPDATE SET source = excluded.source, updated_at = excluded.updated_at`,
+    bind: [source, Date.now()],
+  });
 }
 
 function parseUniformValuesJson(value: SqlValue | undefined) {
@@ -132,8 +160,11 @@ function listProjectsFrom(db: Database): ProjectSummary[] {
 }
 
 function loadDocumentFrom(db: Database, projectId: string): ShaderDocument | null {
+  const functionsSourceProjection = hasTableColumn(db, "projects", "functions_source")
+    ? "functions_source"
+    : "'' AS functions_source";
   const project = db.selectObject(
-    `SELECT id, title, active_pass_id, schema_version
+    `SELECT id, title, ${functionsSourceProjection}, active_pass_id, schema_version
      FROM projects WHERE id = ?`,
     [projectId],
   );
@@ -165,6 +196,7 @@ function loadDocumentFrom(db: Database, projectId: string): ShaderDocument | nul
     schemaVersion: asNumber(project.schema_version, "document version"),
     id: asString(project.id, "project id"),
     title: asString(project.title, "project title"),
+    functionsSource: asString(project.functions_source, "project functions source"),
     activePassId: asString(project.active_pass_id, "active pass id"),
     passes,
   });
@@ -188,16 +220,18 @@ function writeDocumentTo(db: Database, document: ShaderDocument, timestamp = Dat
   db.transaction(() => {
     db.exec({
       sql: `INSERT INTO projects (
-              id, title, active_pass_id, schema_version, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?)
+              id, title, functions_source, active_pass_id, schema_version, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
               title = excluded.title,
+              functions_source = excluded.functions_source,
               active_pass_id = excluded.active_pass_id,
               schema_version = excluded.schema_version,
               updated_at = excluded.updated_at`,
       bind: [
         document.id,
         document.title,
+        document.functionsSource,
         document.activePassId,
         document.schemaVersion,
         createdAt,
@@ -489,8 +523,18 @@ async function importLibrary(bytes: Uint8Array): Promise<LibraryImportResult> {
 
     const document = importedDocuments[0];
     if (!document) throw new Error("No valid shader projects were found in this library.");
+    const targetGlobalSource = loadGlobalFunctionsSourceFrom(target);
+    const importedGlobalSource = loadGlobalFunctionsSourceFrom(imported);
+    const globalFunctionsSource =
+      !importedGlobalSource.trim() || targetGlobalSource === importedGlobalSource
+        ? targetGlobalSource
+        : !targetGlobalSource.trim()
+          ? importedGlobalSource
+          : `${targetGlobalSource.trimEnd()}\n\n// Imported global functions\n${importedGlobalSource.trimStart()}`;
+    saveGlobalFunctionsSourceTo(target, globalFunctionsSource);
     return {
       document,
+      globalFunctionsSource,
       projects: listProjectsFrom(target),
       importedProjectCount: importedDocuments.length,
       remappedProjectCount,
@@ -528,7 +572,13 @@ async function initialize(payload: {
   const document = preferred ?? loadDocumentFrom(db, projects[0].id);
   if (!document) throw new Error("The shader library could not restore its active project.");
 
-  return { document, projects, persistent, migratedLegacyDocument };
+  return {
+    document,
+    globalFunctionsSource: loadGlobalFunctionsSourceFrom(db),
+    projects,
+    persistent,
+    migratedLegacyDocument,
+  };
 }
 
 async function handleRequest(request: DatabaseRequest): Promise<DatabaseResult> {
@@ -543,6 +593,9 @@ async function handleRequest(request: DatabaseRequest): Promise<DatabaseResult> 
     case "save-document":
       writeDocumentTo(requireDatabase(), request.payload.document);
       return listProjectsFrom(requireDatabase());
+    case "save-global-functions":
+      saveGlobalFunctionsSourceTo(requireDatabase(), request.payload.source);
+      return undefined;
     case "import-document": {
       const imported = cloneShaderDocumentWithNewIds(request.payload.document);
       writeDocumentTo(requireDatabase(), imported);

@@ -5,6 +5,7 @@ export function serializeDocumentContent(document: ShaderDocument) {
     schemaVersion: document.schemaVersion,
     id: document.id,
     title: document.title,
+    functionsSource: document.functionsSource,
     activePassId: document.activePassId,
     passes: document.passes.map((pass) => ({
       id: pass.id,
@@ -13,6 +14,7 @@ export function serializeDocumentContent(document: ShaderDocument) {
       language: pass.language,
       source: pass.source,
       uniformValues: pass.uniformValues,
+      resolutionScale: pass.resolutionScale,
     })),
   });
 }

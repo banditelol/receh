@@ -1,5 +1,6 @@
 import type { PassResolutionScale } from "../document/shaderDocument.ts";
 import type { RuntimeUniform } from "../uniforms/uniformTypes.ts";
+import type { ShaderLineOrigin } from "../functions/functionLibrary.ts";
 import {
   createFramebufferTarget,
   deleteFramebufferTarget,
@@ -11,6 +12,7 @@ import {
 export type ShaderPipelinePass = {
   id: string;
   source: string;
+  lineOrigins: readonly ShaderLineOrigin[];
   resolutionScale: PassResolutionScale;
   uniforms: RuntimeUniform[];
 };

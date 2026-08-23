@@ -37,6 +37,7 @@ export type SnapshotSummary = {
 
 export type RepositoryBootstrap = {
   document: ShaderDocument;
+  globalFunctionsSource: string;
   projects: ProjectSummary[];
   persistent: boolean;
   migratedLegacyDocument: boolean;
@@ -44,6 +45,7 @@ export type RepositoryBootstrap = {
 
 export type LibraryImportResult = {
   document: ShaderDocument;
+  globalFunctionsSource: string;
   projects: ProjectSummary[];
   importedProjectCount: number;
   remappedProjectCount: number;
@@ -57,6 +59,7 @@ export interface ShaderRepository {
   listProjects(): Promise<ProjectSummary[]>;
   loadProject(projectId: string): Promise<ShaderDocument>;
   saveDocument(document: ShaderDocument): Promise<ProjectSummary[]>;
+  saveGlobalFunctionsSource(source: string): Promise<void>;
   importDocument(document: ShaderDocument): Promise<ShaderDocument>;
   createSnapshot(document: ShaderDocument, reason: SnapshotReason): Promise<boolean>;
   createManualSnapshot(

@@ -4,6 +4,8 @@ import {
   createShaderDocument,
   updateActivePassSource,
   updateActivePassUniformValue,
+  updatePassResolutionScale,
+  updateProjectFunctionsSource,
 } from "./shaderDocument.ts";
 
 describe("shader document content hashes", () => {
@@ -22,5 +24,17 @@ describe("shader document content hashes", () => {
     const before = createShaderDocument();
     const after = updateActivePassUniformValue(before, "u_intensity", 1.4);
     expect(await hashShaderDocument(after)).not.toBe(await hashShaderDocument(before));
+  });
+
+  it("changes when project functions or pass resolution changes", async () => {
+    const before = createShaderDocument();
+    const withFunctions = updateProjectFunctionsSource(
+      before,
+      "float helper(float x) { return x; }",
+    );
+    const withResolution = updatePassResolutionScale(before, "main", 0.5);
+
+    expect(await hashShaderDocument(withFunctions)).not.toBe(await hashShaderDocument(before));
+    expect(await hashShaderDocument(withResolution)).not.toBe(await hashShaderDocument(before));
   });
 });
