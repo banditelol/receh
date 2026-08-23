@@ -5,6 +5,23 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Compact mobile editing
+
+- Made the phone app header and the preview transport collapsible, with compact in-context reveal
+  controls that keep the editor and live canvas available underneath.
+- Added compact symbol-only restart and play/pause actions to the collapsible playback transport;
+  restart seeks to `0:00` and resumes animation immediately.
+- Replaced the automatically open compiler-error drawer with a compact error count in the editor
+  header. Selecting it jumps to the first failure, while highlighted error line numbers reveal and
+  dismiss their messages inline.
+- Preserved raw compiler logs when a browser returns an error without a source line, and added
+  focusable previous/next error controls plus F8 and Shift+F8 diagnostic navigation.
+- Added regression coverage for diagnostic disclosure and navigation, playback restart/resume, and
+  transport collapse state.
+- Added focus-aware visual-viewport keyboard detection so the phone Preview/Code tabs and their
+  safe-area padding disappear while typing, allowing the editor to meet the keyboard without an
+  empty gap across both overlay- and resize-based mobile browser behavior.
+
 ### Persistent PWA installation
 
 - Added a permanent install section to Config so the native install action or iOS Add to Home

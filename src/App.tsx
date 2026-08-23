@@ -13,11 +13,16 @@ import {
   type EditorPreferences,
 } from "./editor/editorPreferences.ts";
 import { GlslDocsPanel } from "./editor/GlslDocsPanel.tsx";
+import {
+  getAdjacentDiagnosticLine,
+  toggleDiagnosticDisclosure,
+} from "./editor/diagnosticDisclosure.ts";
 import type { GlslReferenceEntry } from "./editor/glslCatalog.ts";
 import { ShaderEditor } from "./editor/ShaderEditor.tsx";
 import { ExportPanel } from "./export/ExportPanel.tsx";
 import { useVisualViewport } from "./hooks/useVisualViewport.ts";
 import { LibraryPanel, SAVE_STATUS_LABELS } from "./library/LibraryPanel.tsx";
+import { createPlaybackRestart, togglePlaybackToolbar } from "./playback/playbackControls.ts";
 import { PwaPrompt } from "./pwa/PwaPrompt.tsx";
 import { usePwa } from "./pwa/usePwa.ts";
 import { useStorageHealth } from "./pwa/useStorageHealth.ts";
@@ -70,6 +75,10 @@ export function App() {
   const [message, setMessage] = useState("Compiling");
   const [diagnostics, setDiagnostics] = useState<ShaderDiagnostic[]>([]);
   const [mobilePane, setMobilePane] = useState<MobilePane>("preview");
+  const [topbarCollapsed, setTopbarCollapsed] = useState(false);
+  const [previewToolbarCollapsed, setPreviewToolbarCollapsed] = useState(false);
+  const [expandedDiagnosticLine, setExpandedDiagnosticLine] = useState<number | null>(null);
+  const [rawCompilerErrorOpen, setRawCompilerErrorOpen] = useState(false);
   const [paused, setPaused] = useState(false);
   const [playbackTime, setPlaybackTime] = useState(0);
   const [playbackRange, setPlaybackRange] = useState(DEFAULT_PLAYBACK_RANGE);
@@ -108,6 +117,23 @@ export function App() {
   useEffect(() => {
     saveEditorPreferences(window.localStorage, editorPreferences);
   }, [editorPreferences]);
+
+  useEffect(() => {
+    if (status !== "error") {
+      setExpandedDiagnosticLine(null);
+      setRawCompilerErrorOpen(false);
+      return;
+    }
+
+    if (diagnostics.length > 0) setRawCompilerErrorOpen(false);
+    else setExpandedDiagnosticLine(null);
+    if (
+      expandedDiagnosticLine !== null &&
+      !diagnostics.some((diagnostic) => diagnostic.line === expandedDiagnosticLine)
+    ) {
+      setExpandedDiagnosticLine(null);
+    }
+  }, [diagnostics, expandedDiagnosticLine, status]);
 
   useEffect(() => {
     if (!ready || shareImportStartedRef.current) return;
@@ -208,6 +234,14 @@ export function App() {
     setPlaybackSeekRequest((current) => ({ time: nextTime, request: current.request + 1 }));
   };
 
+  const restartPlayback = () => {
+    resumeAfterScrubRef.current = false;
+    const restarted = createPlaybackRestart(playbackSeekRequest);
+    setPlaybackTime(restarted.playbackTime);
+    setPaused(restarted.paused);
+    setPlaybackSeekRequest(restarted.seekRequest);
+  };
+
   const beginPlaybackScrub = () => {
     resumeAfterScrubRef.current = !paused;
     setPaused(true);
@@ -236,12 +270,29 @@ export function App() {
     }
   };
 
-  const navigateToDiagnostic = (diagnostic: ShaderDiagnostic) => {
+  const navigateToDiagnosticLine = (line: number) => {
     setMobilePane("code");
+    setRawCompilerErrorOpen(false);
+    setExpandedDiagnosticLine(line);
     setNavigationTarget((current) => ({
-      line: diagnostic.line,
+      line,
       request: (current?.request ?? 0) + 1,
     }));
+  };
+
+  const toggleDiagnosticDetails = () => {
+    const result = toggleDiagnosticDisclosure(
+      { expandedLine: expandedDiagnosticLine, rawMessageOpen: rawCompilerErrorOpen },
+      diagnostics,
+    );
+    setExpandedDiagnosticLine(result.state.expandedLine);
+    setRawCompilerErrorOpen(result.state.rawMessageOpen);
+    if (result.navigationLine !== null) navigateToDiagnosticLine(result.navigationLine);
+  };
+
+  const navigateAdjacentDiagnostic = (direction: -1 | 1) => {
+    const line = getAdjacentDiagnosticLine(diagnostics, expandedDiagnosticLine, direction);
+    if (line !== null) navigateToDiagnosticLine(line);
   };
 
   const openLibrary = () => {
@@ -281,7 +332,7 @@ export function App() {
 
   return (
     <main
-      className={`app app--${mobilePane} app--code-presentation-${editorPreferences.phoneCodePresentation}`}
+      className={`app app--${mobilePane} app--code-presentation-${editorPreferences.phoneCodePresentation} ${topbarCollapsed ? "app--topbar-collapsed" : ""}`}
     >
       <header className="topbar">
         <button
@@ -310,6 +361,14 @@ export function App() {
           <button className="config-button" type="button" onClick={() => setSettingsOpen(true)}>
             Config
           </button>
+          <button
+            className="topbar-toggle"
+            type="button"
+            onClick={() => setTopbarCollapsed(true)}
+            aria-label="Hide app header"
+          >
+            <span aria-hidden="true">⌃</span>
+          </button>
         </div>
       </header>
 
@@ -328,7 +387,19 @@ export function App() {
             onCompileState={handleCompileState}
             onPlaybackTimeChange={handlePlaybackTimeChange}
           />
-          <div className="preview-toolbar">
+          {topbarCollapsed && (
+            <button
+              className="topbar-restore topbar-restore--preview"
+              type="button"
+              onClick={() => setTopbarCollapsed(false)}
+              aria-label="Show app header"
+            >
+              <span aria-hidden="true">⌄</span>
+            </button>
+          )}
+          <div
+            className={`preview-toolbar ${previewToolbarCollapsed ? "preview-toolbar--collapsed" : ""}`}
+          >
             <span className={`status status--${status}`}>
               <span className="status-dot" aria-hidden="true" />
               {statusText}
@@ -362,16 +433,27 @@ export function App() {
                 </span>
               </button>
               <button
-                className="preview-control"
+                className="preview-control preview-control--icon"
+                type="button"
+                onClick={restartPlayback}
+                aria-label="Restart playback from the beginning"
+                title="Restart playback"
+              >
+                <span className="preview-control-icon" aria-hidden="true">
+                  ↺
+                </span>
+              </button>
+              <button
+                className="preview-control preview-control--icon"
                 type="button"
                 onClick={() => setPaused((value) => !value)}
                 aria-label={paused ? "Resume animation" : "Pause animation"}
                 aria-pressed={!paused}
+                title={paused ? "Play" : "Pause"}
               >
                 <span className="preview-control-icon" aria-hidden="true">
                   {paused ? "▶" : "Ⅱ"}
                 </span>
-                {paused ? "Play" : "Pause"}
               </button>
               <button
                 className="preview-control"
@@ -387,15 +469,67 @@ export function App() {
                 </span>
                 {previewFullscreen ? "Exit" : "Fullscreen"}
               </button>
+              <button
+                className="preview-control preview-toolbar-toggle"
+                type="button"
+                onClick={() => setPreviewToolbarCollapsed(togglePlaybackToolbar)}
+                aria-label={
+                  previewToolbarCollapsed ? "Show playback controls" : "Hide playback controls"
+                }
+                aria-expanded={!previewToolbarCollapsed}
+              >
+                <span className="preview-control-icon" aria-hidden="true">
+                  {previewToolbarCollapsed ? "⌃" : "⌄"}
+                </span>
+                <span className="preview-toolbar-toggle-label">
+                  {previewToolbarCollapsed ? "Playback" : "Hide"}
+                </span>
+              </button>
             </span>
           </div>
         </section>
 
-        <section className="code-pane" aria-label="Code panel">
+        <section
+          className={`code-pane ${rawCompilerErrorOpen ? "code-pane--compiler-error-open" : ""}`}
+          aria-label="Code panel"
+        >
           <div className="panel-heading">
-            <div>
-              <span className="eyebrow">Fragment shader</span>
-              <strong>{activePass.name}</strong>
+            <div className="panel-heading-primary">
+              {topbarCollapsed && (
+                <button
+                  className="topbar-restore"
+                  type="button"
+                  onClick={() => setTopbarCollapsed(false)}
+                  aria-label="Show app header"
+                >
+                  <span aria-hidden="true">⌄</span>
+                </button>
+              )}
+              {status === "error" ? (
+                <button
+                  className="panel-error-button"
+                  type="button"
+                  onClick={toggleDiagnosticDetails}
+                  aria-expanded={expandedDiagnosticLine !== null || rawCompilerErrorOpen}
+                  aria-label={`${statusText}. ${
+                    expandedDiagnosticLine !== null || rawCompilerErrorOpen
+                      ? "Hide error details"
+                      : diagnostics.length > 0
+                        ? "Show the first error"
+                        : "Show compiler error details"
+                  }`}
+                >
+                  <span className="status-dot" aria-hidden="true" />
+                  {diagnostics.length > 0
+                    ? `${diagnostics.length} ${diagnostics.length === 1 ? "error" : "errors"}`
+                    : "Compile error"}
+                </button>
+              ) : (
+                <span className="panel-heading-title">
+                  <span className="eyebrow">Fragment shader</span>
+                  <strong>{activePass.name}</strong>
+                </span>
+              )}
             </div>
             <div className="panel-heading-actions">
               <span className="language-pill">GLSL 300 ES</span>
@@ -429,6 +563,21 @@ export function App() {
               </button>
             </div>
           </div>
+          {rawCompilerErrorOpen && status === "error" && diagnostics.length === 0 && (
+            <div className="compiler-error-panel" role="alert">
+              <span>
+                <strong>Compiler error</strong>
+                <code>{message}</code>
+              </span>
+              <button
+                type="button"
+                onClick={() => setRawCompilerErrorOpen(false)}
+                aria-label="Hide compiler error details"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <ShaderEditor
             value={source}
             diagnostics={diagnostics}
@@ -438,6 +587,13 @@ export function App() {
             preferences={editorPreferences}
             searchRequest={searchRequest}
             onReferenceChange={setCursorReference}
+            expandedDiagnosticLine={expandedDiagnosticLine}
+            onDiagnosticLineClick={(line) => {
+              setRawCompilerErrorOpen(false);
+              setExpandedDiagnosticLine(line);
+            }}
+            onNavigateDiagnostic={navigateAdjacentDiagnostic}
+            onCloseDiagnostic={() => setExpandedDiagnosticLine(null)}
           />
           {cursorReference && editorPreferences.inlineDocumentation && status !== "error" && (
             <button
@@ -450,25 +606,6 @@ export function App() {
               <code>{cursorReference.signatures[0]}</code>
               <span>Inspect</span>
             </button>
-          )}
-          {status === "error" && (
-            <div className="error-drawer" role="status" aria-live="polite">
-              {diagnostics.length > 0 ? (
-                diagnostics.map((diagnostic, index) => (
-                  <button
-                    type="button"
-                    className="diagnostic-link"
-                    key={`${diagnostic.line}-${diagnostic.message}-${index}`}
-                    onClick={() => navigateToDiagnostic(diagnostic)}
-                  >
-                    <strong>Line {diagnostic.line}</strong>
-                    <span>{diagnostic.message}</span>
-                  </button>
-                ))
-              ) : (
-                <span>{message}</span>
-              )}
-            </div>
           )}
         </section>
       </section>
