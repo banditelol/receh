@@ -5,6 +5,13 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Master VM preview sync
+
+- Added a guarded VM sync script that fetches `origin/main`, fast-forwards only a clean local
+  `main` checkout, and refreshes dependencies when a merged change updates the package manifest or
+  lockfile. The master VM runs it once per minute so remotely merged work reaches the development
+  preview without a manual pull.
+
 ### Compact mobile editing
 
 - Made the phone app header and the preview transport collapsible, with compact in-context reveal
