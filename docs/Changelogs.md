@@ -5,6 +5,14 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### V1 debt and shared terminology
+
+- Added a V1 debt/follow-up section covering topbar control placement, fullscreen playback
+  occlusion, aspect-correct preview thumbnails, document undo/redo or an undo tree, and optional
+  complete revision lineage rooted by explicit New project and Import project actions.
+- Added a repository product glossary for canonical UI, source, storage, history, rendering, and
+  reliability terms, and directed future agents to search and maintain it.
+
 ### Mobile preview and editor navigation polish
 
 - Gave the mobile playback status its own full-width row, kept the collapsed playback affordance

@@ -2,6 +2,10 @@
 
 These instructions apply to the entire repository.
 
+Before terminology-sensitive planning, implementation, or review, search
+[`docs/glossary.md`](docs/glossary.md) and reuse its canonical product/component names. Update the
+glossary when introducing a durable new concept or renaming an existing one.
+
 ## Toolchain
 
 - Use VitePlus through `vp` for package management and project tasks.

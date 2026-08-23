@@ -128,6 +128,40 @@ unless real-device validation uncovers a blocking need.
       files, durable persistence, and editing or backup outside receh where the File System Access
       API is available.
 
+## V1 debt and follow-up features
+
+Use the shared names in [the product glossary](./glossary.md) when turning these items into design
+or implementation checkpoints.
+
+### Interface debt
+
+- [ ] **Make topbar collapse and restore placement unambiguous.** Keep the collapse control at the
+      right edge of the expanded topbar and place the restore control at the left edge after the
+      topbar is collapsed. Verify both Preview and Code views, including safe areas and fullscreen
+      transitions on phones.
+- [ ] **Hide playback controls in fullscreen.** The playback toolbar currently occludes part of the
+      viewport in fullscreen. Hide the entire toolbar, including its collapsed affordance and
+      Live/error indicator, while fullscreen is active; exiting fullscreen restores its previous
+      expanded or collapsed state.
+- [ ] **Preserve the viewport aspect ratio in preview thumbnails.** Floating and Uniform Tuner
+      thumbnails must derive their aspect ratio from the current viewport instead of using a fixed
+      box. Fit the complete rendered viewport without cropping or stretching, and recompute the
+      thumbnail when the viewport, orientation, or floating-window size changes.
+
+### New features
+
+- [ ] **Add document undo and redo, preferably as an undo tree.** Cover source edits, pass changes,
+      project functions, and tuned values without conflating short-term editing history with named
+      recovery snapshots. A tree should preserve abandoned branches after undo followed by a new
+      edit, expose a comprehensible branch-selection UI, and define retention and persistence
+      limits before implementation. A linear undo/redo stack is an acceptable first checkpoint if
+      the document boundary remains upgradeable to a tree.
+- [ ] **Optionally retain revision history from project creation.** Let users opt into keeping the
+      complete project revision lineage rather than only rolling recovery history. Provide explicit
+      **New project** and **Import project** entry actions because both establish a new lineage root;
+      define how imports, duplicates, restores, and library merges preserve or fork that lineage.
+      Keep this setting local-first and communicate its storage cost before enabling it.
+
 ## Recommended next phase
 
 Finish the browser V1 before starting a React Native shell. The repository boundary, portable
