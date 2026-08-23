@@ -198,14 +198,19 @@ export function EditorSettingsPanel({
             <span>Phone Code view</span>
             <select
               value={preferences.phoneCodePresentation}
-              onChange={(event) =>
+              onChange={(event) => {
+                const presentation = event.target.value;
                 onChange({
-                  phoneCodePresentation: event.target.value === "overlay" ? "overlay" : "focus",
-                })
-              }
+                  phoneCodePresentation:
+                    presentation === "overlay" || presentation === "floating"
+                      ? presentation
+                      : "focus",
+                });
+              }}
             >
               <option value="focus">Focus</option>
               <option value="overlay">Overlay preview</option>
+              <option value="floating">Floating preview</option>
             </select>
           </label>
 

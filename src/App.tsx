@@ -481,7 +481,12 @@ export function App() {
   const toggleCodePresentation = () => {
     setEditorPreferences((current) => ({
       ...current,
-      phoneCodePresentation: current.phoneCodePresentation === "focus" ? "overlay" : "focus",
+      phoneCodePresentation:
+        current.phoneCodePresentation === "focus"
+          ? "overlay"
+          : current.phoneCodePresentation === "overlay"
+            ? "floating"
+            : "focus",
     }));
   };
 
@@ -519,7 +524,7 @@ export function App() {
 
   return (
     <main
-      className={`app app--${mobilePane} app--code-presentation-${editorPreferences.phoneCodePresentation} ${topbarCollapsed ? "app--topbar-collapsed" : ""}`}
+      className={`app app--${mobilePane} app--code-presentation-${editorPreferences.phoneCodePresentation} ${topbarCollapsed ? "app--topbar-collapsed" : ""} ${tunerOpen ? "app--tuner-open" : ""}`}
     >
       <header className="topbar">
         <button
@@ -685,7 +690,6 @@ export function App() {
             passes={document.passes}
             activePassId={document.activePassId}
             sourceView={editorSourceView}
-            functions={visibleFunctions}
             onActivate={(passId) => {
               setEditorSourceView("pass");
               setFocusedFunctionName(undefined);
@@ -706,9 +710,6 @@ export function App() {
               )
             }
             onDelete={deleteActivePass}
-            onOpenFunctions={openFunctions}
-            onJumpToFunction={jumpToFunction}
-            onAddFunction={addFunction}
           />
           <div className="panel-heading">
             <div className="panel-heading-primary">
@@ -763,28 +764,96 @@ export function App() {
                 type="button"
                 onClick={() => setSearchRequest((request) => request + 1)}
                 aria-label="Find in shader source"
+                title="Find"
               >
-                Find
+                <span aria-hidden="true">⌕</span>
               </button>
               <button
                 className="panel-action"
                 type="button"
                 onClick={() => openDocs(cursorReference?.name)}
                 aria-label="Search offline GLSL function documentation"
+                title="GLSL documentation"
               >
-                Docs
+                <span aria-hidden="true">?</span>
               </button>
+              <label className="panel-icon-select" title="Choose shader source">
+                <span className="sr-only">Choose shader source</span>
+                <span aria-hidden="true">ƒ</span>
+                <select
+                  value={editorSourceView}
+                  aria-label="Choose shader source"
+                  onChange={(event) => {
+                    const view = event.target.value as EditorSourceView;
+                    if (view === "pass") setEditorSourceView("pass");
+                    else openFunctions(view);
+                  }}
+                >
+                  <option value="pass">Fragment pass</option>
+                  <option value="project">Project functions</option>
+                  <option value="global">Global functions</option>
+                </select>
+              </label>
+              {editorSourceView !== "pass" && (
+                <>
+                  <label
+                    className="panel-icon-select"
+                    title={`Jump to a ${editorSourceView} function`}
+                  >
+                    <span className="sr-only">Jump to a {editorSourceView} function</span>
+                    <span aria-hidden="true">↳</span>
+                    <select
+                      value=""
+                      aria-label={`Jump to a ${editorSourceView} function`}
+                      onChange={(event) => {
+                        const definition = visibleFunctions.find(
+                          (item) => item.name === event.target.value,
+                        );
+                        if (definition) jumpToFunction(definition);
+                      }}
+                    >
+                      <option value="">Jump to function</option>
+                      {visibleFunctions.map((definition) => (
+                        <option
+                          value={definition.name}
+                          key={`${definition.name}:${definition.line}`}
+                        >
+                          {definition.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    className="panel-action"
+                    type="button"
+                    onClick={addFunction}
+                    aria-label={`Add a ${editorSourceView} function`}
+                    title="Add function"
+                  >
+                    <span aria-hidden="true">＋ƒ</span>
+                  </button>
+                </>
+              )}
               <button
                 className="panel-action presentation-toggle"
                 type="button"
                 onClick={toggleCodePresentation}
                 aria-label={
                   editorPreferences.phoneCodePresentation === "focus"
-                    ? "Show the live preview behind the code editor"
-                    : "Use an opaque code editor"
+                    ? "Use overlay preview behind the editor"
+                    : editorPreferences.phoneCodePresentation === "overlay"
+                      ? "Use a floating preview window"
+                      : "Use an opaque code editor"
                 }
+                title={`Code preview: ${editorPreferences.phoneCodePresentation}`}
               >
-                {editorPreferences.phoneCodePresentation === "focus" ? "Overlay" : "Focus"}
+                <span aria-hidden="true">
+                  {editorPreferences.phoneCodePresentation === "focus"
+                    ? "◫"
+                    : editorPreferences.phoneCodePresentation === "overlay"
+                      ? "▣"
+                      : "□"}
+                </span>
               </button>
             </div>
           </div>

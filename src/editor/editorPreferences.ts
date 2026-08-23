@@ -13,7 +13,7 @@ export const EDITOR_LINE_HEIGHTS = [1.4, 1.5, 1.65] as const;
 
 export const COMPLETION_MODES = ["typing", "manual", "off"] as const;
 
-export const CODE_PRESENTATIONS = ["focus", "overlay"] as const;
+export const CODE_PRESENTATIONS = ["focus", "overlay", "floating"] as const;
 
 export type EditorThemeId = (typeof EDITOR_THEME_IDS)[number];
 export type EditorFontId = (typeof EDITOR_FONT_IDS)[number];

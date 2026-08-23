@@ -50,4 +50,10 @@ describe("editor preferences", () => {
     expect(loadEditorPreferences(storage)).toEqual(preferences);
     expect(loadEditorPreferences(createStorage("not-json"))).toEqual(DEFAULT_EDITOR_PREFERENCES);
   });
+
+  it("keeps the floating phone preview preference", () => {
+    expect(normalizeEditorPreferences({ phoneCodePresentation: "floating" })).toMatchObject({
+      phoneCodePresentation: "floating",
+    });
+  });
 });

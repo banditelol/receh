@@ -5,6 +5,18 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Mobile preview and editor navigation polish
+
+- Gave the mobile playback status its own full-width row, kept the collapsed playback affordance
+  over the canvas, and kept header collapse on the right with its restore control on the left.
+- Added a third floating-preview code presentation alongside Focus and Overlay, including a compact
+  live canvas on phones and a resizable preview window on desktop-sized viewports.
+- Kept the live shader visible while tuning uniforms by lifting the same interactive preview into a
+  dedicated thumbnail above the tuner, with a resizable desktop window and space-aware phone layout.
+- Clarified the pass/function hierarchy by keeping only ordered passes in the source strip and
+  moving source scope, function jump/add, Find, Docs, and preview presentation into a single icon-led
+  editor action row.
+
 ### Project and global function libraries
 
 - Added dedicated project and global GLSL function sources alongside fragment passes, with project
