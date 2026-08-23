@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_SHADER } from "./defaultShader.ts";
 import {
+  addFragmentPass,
   createPortableShaderDocument,
+  deleteFragmentPass,
   getActivePass,
+  moveFragmentPass,
   resetActivePassUniformValues,
+  setActivePass,
   updateActivePassName,
   updateActivePassSource,
   updateActivePassUniformValue,
+  updatePassResolutionScale,
+  type PassResolutionScale,
 } from "./document/shaderDocument.ts";
 import { useShaderLibrary } from "./document/useShaderLibrary.ts";
 import {
@@ -25,6 +31,7 @@ import { ExportPanel } from "./export/ExportPanel.tsx";
 import { useVisualViewport } from "./hooks/useVisualViewport.ts";
 import { LibraryPanel, SAVE_STATUS_LABELS } from "./library/LibraryPanel.tsx";
 import { createPlaybackRestart, togglePlaybackToolbar } from "./playback/playbackControls.ts";
+import { PassToolbar } from "./passes/PassToolbar.tsx";
 import { PwaPrompt } from "./pwa/PwaPrompt.tsx";
 import { usePwa } from "./pwa/usePwa.ts";
 import { useStorageHealth } from "./pwa/useStorageHealth.ts";
@@ -115,9 +122,27 @@ export function App() {
   const activePass = getActivePass(document);
   const source = activePass.source;
   const uniformDefinitions = useMemo(() => parseTunableUniforms(source), [source]);
-  const runtimeUniforms = useMemo(
-    () => resolveRuntimeUniforms(uniformDefinitions, activePass.uniformValues),
-    [activePass.uniformValues, uniformDefinitions],
+  const shaderCanvasPasses = useMemo(
+    () =>
+      document.passes.map((pass) => {
+        const definitions = parseTunableUniforms(pass.source);
+        return {
+          id: pass.id,
+          source: pass.source,
+          resolutionScale: pass.resolutionScale,
+          uniforms: resolveRuntimeUniforms(definitions, pass.uniformValues),
+        };
+      }),
+    [document.passes],
+  );
+  const compileFingerprint = useMemo(
+    () =>
+      JSON.stringify(
+        document.passes
+          .map((pass) => [pass.id, pass.source] as const)
+          .sort(([left], [right]) => left.localeCompare(right)),
+      ),
+    [document.passes],
   );
 
   useEffect(() => {
@@ -169,7 +194,7 @@ export function App() {
       setCompileRequest((request) => request + 1);
     }, 450);
     return () => window.clearTimeout(timer);
-  }, [activePass.id, document.id, source]);
+  }, [compileFingerprint, document.id]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -196,11 +221,15 @@ export function App() {
       diagnostics: ShaderDiagnostic[];
       message: string;
       hasLastGoodProgram: boolean;
+      passId?: string;
     }) => {
       setStatus(state.status);
       setDiagnostics(state.diagnostics);
       setMessage(state.message);
       setHasLastGoodProgram(state.hasLastGoodProgram);
+      if (state.status === "error" && state.passId) {
+        setDocument((current) => setActivePass(current, state.passId!));
+      }
     },
     [],
   );
@@ -335,6 +364,19 @@ export function App() {
     setDocument((current) => updateActivePassUniformValue(current, name, value));
   };
 
+  const deleteActivePass = async () => {
+    try {
+      await createSnapshot("before-pass-delete");
+      setDocument((current) => deleteFragmentPass(current, current.activePassId));
+    } catch (reason) {
+      window.alert(
+        reason instanceof Error
+          ? `Pass deletion was cancelled: ${reason.message}`
+          : "Pass deletion was cancelled because a recovery snapshot could not be created.",
+      );
+    }
+  };
+
   const bakeUniformValues = async () => {
     await createSnapshot("before-bake");
     setDocument((current) => {
@@ -394,12 +436,11 @@ export function App() {
         >
           <ShaderCanvas
             documentId={document.id}
-            passId={activePass.id}
-            source={source}
+            passes={shaderCanvasPasses}
+            activePassId={document.activePassId}
             compileRequest={compileRequest}
             paused={paused}
             seekRequest={playbackSeekRequest}
-            uniforms={runtimeUniforms}
             onCompileState={handleCompileState}
             onPlaybackTimeChange={handlePlaybackTimeChange}
           />
@@ -509,6 +550,22 @@ export function App() {
           className={`code-pane ${rawCompilerErrorOpen ? "code-pane--compiler-error-open" : ""}`}
           aria-label="Code panel"
         >
+          <PassToolbar
+            passes={document.passes}
+            activePassId={document.activePassId}
+            onActivate={(passId) => setDocument((current) => setActivePass(current, passId))}
+            onAdd={() => setDocument(addFragmentPass)}
+            onRename={(name) => setDocument((current) => updateActivePassName(current, name))}
+            onMove={(direction) =>
+              setDocument((current) => moveFragmentPass(current, current.activePassId, direction))
+            }
+            onResolutionScaleChange={(resolutionScale: PassResolutionScale) =>
+              setDocument((current) =>
+                updatePassResolutionScale(current, current.activePassId, resolutionScale),
+              )
+            }
+            onDelete={deleteActivePass}
+          />
           <div className="panel-heading">
             <div className="panel-heading-primary">
               {topbarCollapsed && (
@@ -651,9 +708,8 @@ export function App() {
       {exportOpen && (
         <ExportPanel
           document={document}
-          source={source}
           canRender={status === "ready"}
-          uniforms={runtimeUniforms}
+          passes={shaderCanvasPasses}
           onClose={() => setExportOpen(false)}
         />
       )}

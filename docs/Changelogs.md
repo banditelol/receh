@@ -5,6 +5,24 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Ordered fragment passes
+
+- Added an ordered WebGL2 pass pipeline with reusable framebuffer textures, `u_previous` for the
+  immediate input, indexed `u_pass0`, `u_pass1`, and later inputs, and full-, half-, or
+  quarter-resolution intermediate targets. The final pass remains fixed at output resolution.
+- Added responsive pass tabs and controls for add, rename, reorder, resolution, navigation, and
+  guarded deletion, including an automatic recovery snapshot before removing a pass.
+- Migrated portable documents to schema V3 and SQLite libraries to schema V4 so pass order,
+  selection, source, tuned values, and resolution survive reloads, project/library transfer, and
+  recovery restores.
+- Routed live preview, 1080 × 1080 PNG, and Story MP4 rendering through the same complete pipeline;
+  compilation remains revision-safe per pass and automatically opens the pass containing an error
+  while the last-good pipeline continues rendering.
+- Added coverage for document migration and pass operations, ordered texture binding, resolution,
+  framebuffer reuse/resizing/disposal, and generated-name collisions. Verified a three-pass fixture,
+  reordering, persistence, delete/restore, compile recovery, indexed input sampling, and PNG export
+  at 1440 × 900 and 390 × 844 with no application console errors.
+
 ### Revision-safe shader compilation
 
 - Scoped every compile request to its project, pass, monotonically increasing source revision, and

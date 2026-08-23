@@ -13,6 +13,15 @@ export type ShaderFrame = {
   drag: [number, number];
   scroll: number;
   uniforms?: RuntimeUniform[];
+  target?: FramebufferTarget | null;
+  inputTextures?: readonly WebGLTexture[];
+};
+
+export type FramebufferTarget = {
+  framebuffer: WebGLFramebuffer;
+  texture: WebGLTexture;
+  width: number;
+  height: number;
 };
 
 export type ProgramResult = { program: WebGLProgram; log: "" } | { program: null; log: string };
@@ -74,6 +83,44 @@ export function createFullscreenTriangle(gl: WebGL2RenderingContext) {
   return buffer;
 }
 
+export function createFramebufferTarget(
+  gl: WebGL2RenderingContext,
+  width: number,
+  height: number,
+): FramebufferTarget {
+  const framebuffer = gl.createFramebuffer();
+  const texture = gl.createTexture();
+  if (!framebuffer || !texture) {
+    if (framebuffer) gl.deleteFramebuffer(framebuffer);
+    if (texture) gl.deleteTexture(texture);
+    throw new Error("Unable to create an intermediate pass texture.");
+  }
+
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+    gl.deleteFramebuffer(framebuffer);
+    gl.deleteTexture(texture);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    throw new Error("An intermediate pass framebuffer is incomplete.");
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.bindTexture(gl.TEXTURE_2D, null);
+  return { framebuffer, texture, width, height };
+}
+
+export function deleteFramebufferTarget(gl: WebGL2RenderingContext, target: FramebufferTarget) {
+  gl.deleteFramebuffer(target.framebuffer);
+  gl.deleteTexture(target.texture);
+}
+
 export function renderShaderFrame(
   gl: WebGL2RenderingContext,
   program: WebGLProgram,
@@ -81,7 +128,10 @@ export function renderShaderFrame(
   frame: ShaderFrame,
 ) {
   const canvas = gl.canvas;
-  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, frame.target?.framebuffer ?? null);
+  const width = frame.target?.width ?? canvas.width;
+  const height = frame.target?.height ?? canvas.height;
+  gl.viewport(0, 0, width, height);
   gl.useProgram(program);
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
 
@@ -91,13 +141,21 @@ export function renderShaderFrame(
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
   }
 
-  gl.uniform2f(gl.getUniformLocation(program, "u_resolution"), canvas.width, canvas.height);
+  gl.uniform2f(gl.getUniformLocation(program, "u_resolution"), width, height);
   gl.uniform1f(gl.getUniformLocation(program, "u_time"), frame.time);
   gl.uniform1f(gl.getUniformLocation(program, "u_time_delta"), frame.timeDelta);
   gl.uniform2f(gl.getUniformLocation(program, "u_mouse"), frame.mouse[0], frame.mouse[1]);
   gl.uniform2f(gl.getUniformLocation(program, "u_drag"), frame.drag[0], frame.drag[1]);
   gl.uniform1f(gl.getUniformLocation(program, "u_scroll"), frame.scroll);
   gl.uniform1i(gl.getUniformLocation(program, "u_frame"), frame.frame);
+  frame.inputTextures?.forEach((texture, index) => {
+    gl.activeTexture(gl.TEXTURE0 + index);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.uniform1i(gl.getUniformLocation(program, `u_pass${index}`), index);
+    if (index === frame.inputTextures!.length - 1) {
+      gl.uniform1i(gl.getUniformLocation(program, "u_previous"), index);
+    }
+  });
   for (const uniform of frame.uniforms ?? []) {
     const location = gl.getUniformLocation(program, uniform.name);
     if (!location) continue;

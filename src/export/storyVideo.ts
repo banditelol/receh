@@ -1,5 +1,4 @@
-import { renderShaderFrame } from "../renderer/webgl.ts";
-import type { RuntimeUniform } from "../uniforms/uniformTypes.ts";
+import type { ShaderPipelinePass } from "../renderer/passPipeline.ts";
 import { createExportRenderer } from "./renderExport.ts";
 
 export const STORY_VIDEO_WIDTH = 1080;
@@ -12,7 +11,6 @@ export type StoryVideoOptions = {
   durationSeconds: number;
   signal?: AbortSignal;
   onProgress?: (progress: number) => void;
-  uniforms?: RuntimeUniform[];
 };
 
 export type StoryVideoResult = {
@@ -78,13 +76,13 @@ function yieldToBrowser() {
 }
 
 async function renderDeterministicStoryVideo(
-  source: string,
+  passes: readonly ShaderPipelinePass[],
   options: StoryVideoOptions,
 ): Promise<StoryVideoResult> {
   throwIfAborted(options.signal);
   const { BufferTarget, CanvasSource, Mp4OutputFormat, Output, Quality } =
     await import("mediabunny");
-  const renderer = createExportRenderer(source, STORY_VIDEO_WIDTH, STORY_VIDEO_HEIGHT);
+  const renderer = createExportRenderer(passes, STORY_VIDEO_WIDTH, STORY_VIDEO_HEIGHT);
   const target = new BufferTarget();
   const output = new Output({
     format: new Mp4OutputFormat({ fastStart: "in-memory" }),
@@ -107,14 +105,13 @@ async function renderDeterministicStoryVideo(
     for (let frame = 0; frame < totalFrames; frame += 1) {
       throwIfAborted(options.signal);
       const time = storyFrameTimestamp(frame);
-      renderShaderFrame(renderer.gl, renderer.program, renderer.buffer, {
+      renderer.render({
         time,
         timeDelta: frame === 0 ? 0 : frameDuration,
         frame,
         mouse: [STORY_VIDEO_WIDTH / 2, STORY_VIDEO_HEIGHT / 2],
         drag: [0, 0],
         scroll: 0,
-        uniforms: options.uniforms,
       });
       renderer.gl.finish();
       await videoSource.add(time, frameDuration, {
@@ -143,12 +140,12 @@ async function renderDeterministicStoryVideo(
 }
 
 async function renderRealtimeStoryVideo(
-  source: string,
+  passes: readonly ShaderPipelinePass[],
   options: StoryVideoOptions,
   mimeType: string,
 ): Promise<StoryVideoResult> {
   const durationSeconds = clampStoryDuration(options.durationSeconds);
-  const renderer = createExportRenderer(source, STORY_VIDEO_WIDTH, STORY_VIDEO_HEIGHT);
+  const renderer = createExportRenderer(passes, STORY_VIDEO_WIDTH, STORY_VIDEO_HEIGHT);
   const stream = renderer.canvas.captureStream(STORY_VIDEO_FPS);
   const recorder = new MediaRecorder(stream, {
     mimeType,
@@ -205,14 +202,13 @@ async function renderRealtimeStoryVideo(
 
     const render = (now: number) => {
       const time = Math.min((now - startedAt) / 1000, durationSeconds);
-      renderShaderFrame(renderer.gl, renderer.program, renderer.buffer, {
+      renderer.render({
         time,
         timeDelta: frame === 0 ? 0 : Math.max(0, (now - lastFrameAt) / 1000),
         frame: frame++,
         mouse: [STORY_VIDEO_WIDTH / 2, STORY_VIDEO_HEIGHT / 2],
         drag: [0, 0],
         scroll: 0,
-        uniforms: options.uniforms,
       });
       renderer.gl.flush();
       lastFrameAt = now;
@@ -239,14 +235,14 @@ async function renderRealtimeStoryVideo(
 }
 
 export async function renderStoryVideo(
-  source: string,
+  passes: readonly ShaderPipelinePass[],
   options: StoryVideoOptions,
 ): Promise<StoryVideoResult> {
-  if (await canRenderStoryVideo()) return renderDeterministicStoryVideo(source, options);
+  if (await canRenderStoryVideo()) return renderDeterministicStoryVideo(passes, options);
 
   const mimeType = getRealtimeMp4MimeType();
   if (mimeType && typeof HTMLCanvasElement.prototype.captureStream === "function") {
-    return renderRealtimeStoryVideo(source, options, mimeType);
+    return renderRealtimeStoryVideo(passes, options, mimeType);
   }
   throw new Error("This browser cannot encode the H.264 MP4 required for Story export.");
 }

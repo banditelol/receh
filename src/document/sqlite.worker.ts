@@ -69,13 +69,16 @@ function ensureDatabaseSchema(db: Database) {
   if (version > SHADER_POCKET_DATABASE_VERSION) {
     throw new Error(`Shader library version ${version} is newer than this app supports.`);
   }
-  if (![0, 1, 2, SHADER_POCKET_DATABASE_VERSION].includes(version)) {
+  if (![0, 1, 2, 3, SHADER_POCKET_DATABASE_VERSION].includes(version)) {
     throw new Error(`Shader library version ${version} is not supported.`);
   }
 
   db.exec(CREATE_DATABASE_SCHEMA_SQL);
   if (version === 1) {
     db.exec("ALTER TABLE passes ADD COLUMN uniform_values_json TEXT NOT NULL DEFAULT '{}'");
+  }
+  if (!hasTableColumn(db, "passes", "resolution_scale")) {
+    db.exec("ALTER TABLE passes ADD COLUMN resolution_scale REAL NOT NULL DEFAULT 1");
   }
   if (!hasTableColumn(db, "snapshots", "name")) {
     db.exec("ALTER TABLE snapshots ADD COLUMN name TEXT");
@@ -139,9 +142,12 @@ function loadDocumentFrom(db: Database, projectId: string): ShaderDocument | nul
   const uniformValuesProjection = hasTableColumn(db, "passes", "uniform_values_json")
     ? "uniform_values_json"
     : "'{}' AS uniform_values_json";
+  const resolutionScaleProjection = hasTableColumn(db, "passes", "resolution_scale")
+    ? "resolution_scale"
+    : "1 AS resolution_scale";
   const passes = db
     .selectObjects(
-      `SELECT id, name, kind, language, source, ${uniformValuesProjection}
+      `SELECT id, name, kind, language, source, ${uniformValuesProjection}, ${resolutionScaleProjection}
        FROM passes WHERE project_id = ? ORDER BY position`,
       [projectId],
     )
@@ -152,6 +158,7 @@ function loadDocumentFrom(db: Database, projectId: string): ShaderDocument | nul
       language: asString(row.language, "pass language"),
       source: asString(row.source, "pass source"),
       uniformValues: parseUniformValuesJson(row.uniform_values_json),
+      resolutionScale: asNumber(row.resolution_scale, "pass resolution scale"),
     }));
 
   return migrateShaderDocument({
@@ -201,8 +208,9 @@ function writeDocumentTo(db: Database, document: ShaderDocument, timestamp = Dat
     document.passes.forEach((pass, position) => {
       db.exec({
         sql: `INSERT INTO passes (
-                id, project_id, position, name, kind, language, source, uniform_values_json
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                id, project_id, position, name, kind, language, source, uniform_values_json,
+                resolution_scale
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         bind: [
           pass.id,
           document.id,
@@ -212,6 +220,7 @@ function writeDocumentTo(db: Database, document: ShaderDocument, timestamp = Dat
           pass.language,
           pass.source,
           JSON.stringify(pass.uniformValues),
+          pass.resolutionScale,
         ],
       });
     });
@@ -226,6 +235,7 @@ function isSnapshotReason(value: string): value is SnapshotReason {
     "before-import",
     "before-restore",
     "before-bake",
+    "before-pass-delete",
     "migration",
     "imported",
   ].includes(value);

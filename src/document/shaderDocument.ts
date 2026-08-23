@@ -1,14 +1,15 @@
-import { DEFAULT_SHADER } from "../defaultShader.ts";
+import { DEFAULT_COMPOSITE_PASS, DEFAULT_SHADER } from "../defaultShader.ts";
 import {
   parseShaderUniformValues,
   type ShaderUniformValue,
   type ShaderUniformValues,
 } from "../uniforms/uniformTypes.ts";
 
-export const SHADER_DOCUMENT_VERSION = 2 as const;
+export const SHADER_DOCUMENT_VERSION = 3 as const;
 
 export type ShaderLanguage = "glsl";
 export type ShaderPassKind = "fragment";
+export type PassResolutionScale = 0.25 | 0.5 | 1;
 
 export type ShaderPass = {
   id: string;
@@ -17,6 +18,7 @@ export type ShaderPass = {
   language: ShaderLanguage;
   source: string;
   uniformValues: ShaderUniformValues;
+  resolutionScale: PassResolutionScale;
 };
 
 export type ShaderDocument = {
@@ -57,6 +59,8 @@ function parsePass(value: unknown): ShaderPass | null {
     language: "glsl",
     source: value.source,
     uniformValues: parseShaderUniformValues(value.uniformValues),
+    resolutionScale:
+      value.resolutionScale === 0.25 || value.resolutionScale === 0.5 ? value.resolutionScale : 1,
   };
 }
 
@@ -74,6 +78,7 @@ export function createShaderDocument(source = DEFAULT_SHADER): ShaderDocument {
         language: "glsl",
         source,
         uniformValues: {},
+        resolutionScale: 1,
       },
     ],
   };
@@ -99,6 +104,7 @@ export function createPortableShaderDocument(
         language: "glsl",
         source,
         uniformValues: {},
+        resolutionScale: 1,
       },
     ],
   };
@@ -139,7 +145,7 @@ export function migrateShaderDocument(value: unknown): ShaderDocument {
   }
 
   if (
-    (value.schemaVersion !== 1 && value.schemaVersion !== SHADER_DOCUMENT_VERSION) ||
+    (value.schemaVersion !== 1 && value.schemaVersion !== 2 && value.schemaVersion !== 3) ||
     !Array.isArray(value.passes)
   ) {
     return createShaderDocument();
@@ -179,6 +185,7 @@ export function parseImportedShaderDocument(serialized: string): ShaderDocument 
     value.schemaVersion !== undefined &&
     value.schemaVersion !== 0 &&
     value.schemaVersion !== 1 &&
+    value.schemaVersion !== 2 &&
     value.schemaVersion !== SHADER_DOCUMENT_VERSION
   ) {
     const version =
@@ -187,7 +194,11 @@ export function parseImportedShaderDocument(serialized: string): ShaderDocument 
         : "unknown";
     throw new Error(`Shader document version ${version} is not supported.`);
   }
-  if (value.schemaVersion === 1 || value.schemaVersion === SHADER_DOCUMENT_VERSION) {
+  if (
+    value.schemaVersion === 1 ||
+    value.schemaVersion === 2 ||
+    value.schemaVersion === SHADER_DOCUMENT_VERSION
+  ) {
     if (!Array.isArray(value.passes) || value.passes.length === 0) {
       throw new Error("This project does not contain a fragment pass.");
     }
@@ -224,6 +235,79 @@ export function updateActivePassName(document: ShaderDocument, name: string): Sh
     ...document,
     passes: document.passes.map((pass) =>
       pass.id === document.activePassId ? { ...pass, name: nextName } : pass,
+    ) as [ShaderPass, ...ShaderPass[]],
+  };
+}
+
+export function setActivePass(document: ShaderDocument, passId: string): ShaderDocument {
+  if (document.activePassId === passId) return document;
+  return document.passes.some((pass) => pass.id === passId)
+    ? { ...document, activePassId: passId }
+    : document;
+}
+
+export function addFragmentPass(
+  document: ShaderDocument,
+  createId: IdFactory = () => crypto.randomUUID(),
+): ShaderDocument {
+  const passNames = new Set(document.passes.map((pass) => pass.name));
+  let passNumber = document.passes.length + 1;
+  while (passNames.has(`pass-${passNumber}.frag`)) passNumber += 1;
+  const pass: ShaderPass = {
+    id: createId(),
+    name: `pass-${passNumber}.frag`,
+    kind: "fragment",
+    language: "glsl",
+    source: DEFAULT_COMPOSITE_PASS,
+    uniformValues: {},
+    resolutionScale: 1,
+  };
+  return {
+    ...document,
+    activePassId: pass.id,
+    passes: [...document.passes, pass],
+  };
+}
+
+export function deleteFragmentPass(document: ShaderDocument, passId: string): ShaderDocument {
+  if (document.passes.length === 1) return document;
+  const index = document.passes.findIndex((pass) => pass.id === passId);
+  if (index < 0) return document;
+  const passes = document.passes.filter((pass) => pass.id !== passId) as [
+    ShaderPass,
+    ...ShaderPass[],
+  ];
+  const activePassId =
+    document.activePassId === passId
+      ? (passes[Math.min(index, passes.length - 1)]?.id ?? passes[0].id)
+      : document.activePassId;
+  return { ...document, activePassId, passes };
+}
+
+export function moveFragmentPass(
+  document: ShaderDocument,
+  passId: string,
+  direction: -1 | 1,
+): ShaderDocument {
+  const index = document.passes.findIndex((pass) => pass.id === passId);
+  const nextIndex = index + direction;
+  if (index < 0 || nextIndex < 0 || nextIndex >= document.passes.length) return document;
+  const passes = [...document.passes];
+  [passes[index], passes[nextIndex]] = [passes[nextIndex], passes[index]];
+  return { ...document, passes: passes as [ShaderPass, ...ShaderPass[]] };
+}
+
+export function updatePassResolutionScale(
+  document: ShaderDocument,
+  passId: string,
+  resolutionScale: PassResolutionScale,
+): ShaderDocument {
+  const pass = document.passes.find((candidate) => candidate.id === passId);
+  if (!pass || pass.resolutionScale === resolutionScale) return document;
+  return {
+    ...document,
+    passes: document.passes.map((candidate) =>
+      candidate.id === passId ? { ...candidate, resolutionScale } : candidate,
     ) as [ShaderPass, ...ShaderPass[]],
   };
 }

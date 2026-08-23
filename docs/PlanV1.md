@@ -37,7 +37,11 @@ unless real-device validation uncovers a blocking need.
   GLSL ES functions with signatures, descriptions, examples, desktop hover, and phone cursor help.
 - Dedicated phone Focus and live-preview Overlay code presentations with a device-local default.
 - Raw WebGL2 full-screen triangle renderer with `u_resolution`, `u_time`, `u_time_delta`, `u_frame`,
-  `u_mouse`, `u_drag`, and `u_scroll`.
+  `u_mouse`, `u_drag`, and `u_scroll`, plus ordered framebuffer-backed fragment passes that expose
+  the immediate `u_previous` texture and every earlier output as `u_pass0`, `u_pass1`, and onward.
+- Pass management covers add, rename, delete, reorder, active navigation, and full-, half-, or
+  quarter-resolution intermediate targets. The final pass always renders at output resolution,
+  and framebuffer targets are reused, resized, and disposed deterministically.
 - Parsed live controls for custom float, int, bool, vector, and color uniforms. Color controls keep a
   visual picker, Hex, RGB, and HSL entry synchronized, while numeric `@range` and `@default`
   annotations customize sliders without introducing a separate shader format.
@@ -63,8 +67,8 @@ unless real-device validation uncovers a blocking need.
   backup warning near storage pressure.
 - SHA-256-deduplicated recovery snapshots after 30 quiet seconds and before protected actions, with
   a 50-snapshot per-project retention limit and visible restore history.
-- A pass-shaped document structure ready for multi-pass expansion, while the renderer remains
-  single-pass today.
+- Versioned multi-pass documents preserve pass order, active selection, source, tuned uniforms, and
+  intermediate resolution through project files, SQLite storage, library backups, and snapshots.
 
 ### Portable files and media
 
@@ -73,7 +77,7 @@ unless real-device validation uncovers a blocking need.
 - Validated `.receh.json` and `.frag` project import that creates safe new local projects.
 - Consistent whole-library SQLite export and merge import with application/schema validation and
   collision-safe project, pass, and snapshot ID remapping.
-- 1080 × 1080 PNG rendering through the shared WebGL2 runtime.
+- 1080 × 1080 PNG rendering through the same ordered WebGL2 pass pipeline as the live preview.
 - Duration-controlled Instagram Story export from 1–60 seconds as a 1080 × 1920 H.264 MP4.
 - Constant 30 FPS encoding on secure WebCodecs-capable origins and a target-30 variable-frame-rate
   compatibility path for plain-HTTP Tailscale sessions.
@@ -83,7 +87,8 @@ unless real-device validation uncovers a blocking need.
 ### Current quality baseline
 
 - Formatting, linting, and strict TypeScript checks pass.
-- Seventy-two unit tests cover diagnostics, document migration/update, import validation, storage,
+- Eighty unit tests cover diagnostics, document migration/update, ordered pass execution and
+  framebuffer lifecycle, import validation, storage,
   snapshot hashing, downloads, Story timeline calculations, editor preference repair, GLSL catalog
   search, source-symbol/reference context, uniform parsing/baking, synchronized color conversion,
   storage-pressure classification, and service-worker generation.
@@ -92,22 +97,22 @@ unless real-device validation uncovers a blocking need.
 
 ## V1 scope and status
 
-| Product capability                 | Status      | V1 requirement                                      |
-| ---------------------------------- | ----------- | --------------------------------------------------- |
-| Single-pass create/edit/run loop   | Prepared    | Harden on real phones                               |
-| Mobile and desktop workspaces      | Prepared    | Add remaining device coverage                       |
-| Browser auto-save                  | Prepared    | Harden storage pressure and failure recovery        |
-| Portable local backup              | Prepared    | Harden real-device import/share flows               |
-| Source diagnostics and completions | Prepared    | Harden rapid edits on real phones                   |
-| PNG and Story MP4 export           | Prepared    | Test real-device encoding, memory, and cancellation |
-| Shareable shader URL               | Prepared    | Harden physical-device deep links                   |
-| Named snapshots/history            | Prepared    | Harden backup/restore on real phones                |
-| Parsed uniform tuner               | Prepared    | Harden on real phones                               |
-| Ordered fragment passes            | Not started | Required for V1                                     |
-| Installable/offline PWA            | Prepared    | Harden installation on real devices                 |
-| Accounts and cloud publishing      | Deferred    | Post-V1                                             |
-| WebGPU and alternate languages     | Deferred    | Post-V1                                             |
-| Community, tutorials, marketplace  | Deferred    | Post-V1                                             |
+| Product capability                 | Status   | V1 requirement                                      |
+| ---------------------------------- | -------- | --------------------------------------------------- |
+| Single-pass create/edit/run loop   | Prepared | Harden on real phones                               |
+| Mobile and desktop workspaces      | Prepared | Add remaining device coverage                       |
+| Browser auto-save                  | Prepared | Harden storage pressure and failure recovery        |
+| Portable local backup              | Prepared | Harden real-device import/share flows               |
+| Source diagnostics and completions | Prepared | Harden rapid edits on real phones                   |
+| PNG and Story MP4 export           | Prepared | Test real-device encoding, memory, and cancellation |
+| Shareable shader URL               | Prepared | Harden physical-device deep links                   |
+| Named snapshots/history            | Prepared | Harden backup/restore on real phones                |
+| Parsed uniform tuner               | Prepared | Harden on real phones                               |
+| Ordered fragment passes            | Prepared | Harden three-pass flows on real phones              |
+| Installable/offline PWA            | Prepared | Harden installation on real devices                 |
+| Accounts and cloud publishing      | Deferred | Post-V1                                             |
+| WebGPU and alternate languages     | Deferred | Post-V1                                             |
+| Community, tutorials, marketplace  | Deferred | Post-V1                                             |
 
 ## Product TODO
 
@@ -150,13 +155,15 @@ Use this implementation order:
 4. **Ordered fragment passes.** Add framebuffer-backed pass execution and pass management only
    after sharing, restoration, and compilation have stable version/revision semantics. Keep common
    source and texture/media inputs out of the first multi-pass slice unless they are required by a
-   concrete three-pass fixture.
+   concrete three-pass fixture. Prepared with previous/indexed pass textures, configurable
+   intermediate resolution, guarded management, complete local persistence, and matching live,
+   PNG, and Story render paths.
 5. **Physical-device release gate.** Run a small real-device smoke matrix after each checkpoint,
    then complete the installation, accessibility, offline, thermal, memory, and media-export matrix
    after multi-pass is stable.
 
-The immediate checkpoint is ordered fragment passes. Physical iOS Safari and Android Chrome
-deep-link behavior remains part of the release gate. Large documents continue to use project or
+The immediate checkpoint is the physical-device release gate. Physical iOS Safari and Android
+Chrome deep-link behavior remains part of that gate. Large documents continue to use project or
 SQLite export.
 
 ## What to do next
@@ -237,11 +244,18 @@ Status: prepared in the browser; rapid-edit and project-switch hardening remains
 
 ### 6. Ordered fragment passes
 
-- Extend the renderer from one active pass to common source plus ordered fragment passes.
-- Add previous-pass textures, configurable resolution, and deterministic framebuffer disposal.
+Status: prepared in the browser; three-pass thermal, memory, and interaction hardening remains in
+section 7.
+
+- Execute ordered fragment passes through reusable framebuffer textures, while keeping the planned
+  Common/functions editor as a separate follow-up instead of coupling it to the first multi-pass
+  slice. Prepared.
+- Add immediate and indexed previous-pass textures, configurable intermediate resolution, and
+  deterministic framebuffer disposal. Prepared.
 - Implement add, rename, delete, reorder, and active-pass navigation with guarded destructive
-  actions and automatic snapshots.
+  actions and automatic snapshots. Prepared.
 - Verify a three-pass shader can be edited and reordered repeatedly without resource or frame leaks.
+  Prepared in desktop and phone-profile Chrome; physical-device soak testing remains in section 7.
 
 ### 7. PWA and real-device hardening
 

@@ -40,3 +40,16 @@ void main() {
 
   fragColor = vec4(pow(color, vec3(0.82)), 1.0);
 }`;
+
+export const DEFAULT_COMPOSITE_PASS = `#version 300 es
+precision highp float;
+
+uniform vec2 u_resolution;
+uniform sampler2D u_previous;
+
+out vec4 fragColor;
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  fragColor = texture(u_previous, uv);
+}`;

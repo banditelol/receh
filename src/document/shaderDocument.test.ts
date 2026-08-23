@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
+  addFragmentPass,
   cloneShaderDocumentWithNewIds,
   createShaderDocument,
+  deleteFragmentPass,
   getActivePass,
   migrateShaderDocument,
   parseImportedShaderDocument,
   parseShaderDocument,
+  moveFragmentPass,
+  setActivePass,
   updateActivePassSource,
   updateActivePassName,
   updateActivePassUniformValue,
   updateDocumentTitle,
+  updatePassResolutionScale,
 } from "./shaderDocument.ts";
 
 describe("shader document migrations", () => {
@@ -20,7 +25,7 @@ describe("shader document migrations", () => {
       source: "void main() {}",
     });
 
-    expect(document.schemaVersion).toBe(2);
+    expect(document.schemaVersion).toBe(3);
     expect(document.title).toBe("Legacy");
     expect(getActivePass(document).source).toBe("void main() {}");
   });
@@ -36,6 +41,27 @@ describe("shader document migrations", () => {
 
     expect(document.activePassId).toBe("main");
     expect(getActivePass(document).uniformValues).toEqual({});
+    expect(getActivePass(document).resolutionScale).toBe(1);
+  });
+
+  it("adds full resolution while migrating V2 pass uniform values", () => {
+    const document = migrateShaderDocument({
+      schemaVersion: 2,
+      id: "v2-project",
+      title: "Tuned shader",
+      activePassId: "main",
+      passes: [
+        {
+          id: "main",
+          name: "main.frag",
+          source: "source",
+          uniformValues: { u_strength: 0.75 },
+        },
+      ],
+    });
+
+    expect(getActivePass(document).uniformValues).toEqual({ u_strength: 0.75 });
+    expect(getActivePass(document).resolutionScale).toBe(1);
   });
 
   it("falls back to a valid document for corrupt JSON", () => {
@@ -94,5 +120,40 @@ describe("shader document updates", () => {
     expect(document.id).toBe("new-project");
     expect(document.activePassId).toBe("new-pass");
     expect(document.passes[0].id).toBe("new-pass");
+  });
+
+  it("adds, activates, reorders, scales, and deletes fragment passes immutably", () => {
+    const first = createShaderDocument();
+    const added = addFragmentPass(first, () => "second");
+    const scaled = updatePassResolutionScale(added, "second", 0.5);
+    const moved = moveFragmentPass(scaled, "second", -1);
+    const reactivated = setActivePass(moved, "main");
+    const deleted = deleteFragmentPass(reactivated, "second");
+
+    expect(first.passes).toHaveLength(1);
+    expect(added.activePassId).toBe("second");
+    expect(getActivePass(scaled).resolutionScale).toBe(0.5);
+    expect(moved.passes.map((pass) => pass.id)).toEqual(["second", "main"]);
+    expect(reactivated.activePassId).toBe("main");
+    expect(deleted.passes.map((pass) => pass.id)).toEqual(["main"]);
+  });
+
+  it("keeps at least one pass and ignores unknown active passes", () => {
+    const document = createShaderDocument();
+    expect(deleteFragmentPass(document, "main")).toBe(document);
+    expect(setActivePass(document, "missing")).toBe(document);
+  });
+
+  it("does not reuse an existing generated pass name after deletion", () => {
+    const withSecond = addFragmentPass(createShaderDocument(), () => "second");
+    const withThird = addFragmentPass(withSecond, () => "third");
+    const withoutSecond = deleteFragmentPass(withThird, "second");
+    const withFourth = addFragmentPass(withoutSecond, () => "fourth");
+
+    expect(withFourth.passes.map((pass) => pass.name)).toEqual([
+      "main.frag",
+      "pass-3.frag",
+      "pass-4.frag",
+    ]);
   });
 });

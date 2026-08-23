@@ -1,16 +1,30 @@
-import { createFullscreenTriangle, createProgram, renderShaderFrame } from "../renderer/webgl.ts";
-import type { RuntimeUniform } from "../uniforms/uniformTypes.ts";
+import {
+  disposePipelineTargets,
+  renderPassPipelineFrame,
+  type CompiledPipelinePass,
+  type ShaderPipelinePass,
+} from "../renderer/passPipeline.ts";
+import { createFullscreenTriangle, createProgram } from "../renderer/webgl.ts";
+import type { FramebufferTarget } from "../renderer/webgl.ts";
 
 type ExportRenderer = {
   canvas: HTMLCanvasElement;
   gl: WebGL2RenderingContext;
-  program: WebGLProgram;
+  passes: CompiledPipelinePass[];
   buffer: WebGLBuffer;
+  render: (frame: {
+    time: number;
+    timeDelta: number;
+    frame: number;
+    mouse: [number, number];
+    drag: [number, number];
+    scroll: number;
+  }) => void;
   dispose: () => void;
 };
 
 export function createExportRenderer(
-  source: string,
+  passes: readonly ShaderPipelinePass[],
   width: number,
   height: number,
 ): ExportRenderer {
@@ -26,37 +40,47 @@ export function createExportRenderer(
   if (!gl) throw new Error("WebGL2 is unavailable for export in this browser.");
 
   const buffer = createFullscreenTriangle(gl);
-  const result = createProgram(gl, source);
-  if (!result.program) {
+  const compiledPasses: CompiledPipelinePass[] = [];
+  const targets = new Map<string, FramebufferTarget>();
+  try {
+    for (const pass of passes) {
+      const result = createProgram(gl, pass.source);
+      if (!result.program) throw new Error(`${pass.id}: ${result.log}`);
+      compiledPasses.push({ ...pass, program: result.program });
+    }
+  } catch (reason) {
+    for (const pass of compiledPasses) gl.deleteProgram(pass.program);
     gl.deleteBuffer(buffer);
-    throw new Error(result.log);
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    throw reason;
   }
 
   return {
     canvas,
     gl,
-    program: result.program,
+    passes: compiledPasses,
     buffer,
+    render: (frame) => renderPassPipelineFrame(gl, buffer, compiledPasses, targets, frame),
     dispose: () => {
-      gl.deleteProgram(result.program);
+      disposePipelineTargets(gl, targets);
+      for (const pass of compiledPasses) gl.deleteProgram(pass.program);
       gl.deleteBuffer(buffer);
       gl.getExtension("WEBGL_lose_context")?.loseContext();
     },
   };
 }
 
-export async function renderShaderPng(source: string, time = 0, uniforms: RuntimeUniform[] = []) {
-  const renderer = createExportRenderer(source, 1080, 1080);
+export async function renderShaderPng(passes: readonly ShaderPipelinePass[], time = 0) {
+  const renderer = createExportRenderer(passes, 1080, 1080);
 
   try {
-    renderShaderFrame(renderer.gl, renderer.program, renderer.buffer, {
+    renderer.render({
       time,
       timeDelta: 0,
       frame: 0,
       mouse: [540, 540],
       drag: [0, 0],
       scroll: 0,
-      uniforms,
     });
     renderer.gl.finish();
 

@@ -507,12 +507,118 @@ button:focus-visible,
 
 .code-pane {
   display: grid;
-  grid-template-rows: 61px minmax(0, 1fr);
+  grid-template-rows: 44px 61px minmax(0, 1fr);
   background: var(--panel);
 }
 
 .code-pane--compiler-error-open {
-  grid-template-rows: 61px auto minmax(0, 1fr);
+  grid-template-rows: 44px 61px auto minmax(0, 1fr);
+}
+
+.pass-toolbar {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  border-bottom: 1px solid var(--line-soft);
+  background: #0d0c10;
+}
+
+.pass-tabs,
+.pass-actions {
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+.pass-tabs {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.pass-tabs button,
+.pass-actions button,
+.pass-actions select {
+  min-height: 43px;
+  padding: 0 10px;
+  border: 0;
+  border-right: 1px solid var(--line-soft);
+  border-radius: 0;
+  color: var(--muted);
+  background: transparent;
+  font:
+    650 9px/1 ui-monospace,
+    monospace;
+  white-space: nowrap;
+}
+
+.pass-tabs button {
+  max-width: 160px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pass-tabs button > span {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-size: 8px;
+}
+
+.pass-tabs button:hover,
+.pass-tabs button:focus-visible,
+.pass-actions button:hover:not(:disabled),
+.pass-actions button:focus-visible,
+.pass-actions select:hover,
+.pass-actions select:focus-visible {
+  color: var(--text);
+  background: rgb(255 255 255 / 5%);
+}
+
+.pass-tabs button.active {
+  color: #ffd2c1;
+  background: rgb(255 106 54 / 9%);
+  box-shadow: inset 0 -2px var(--orange);
+}
+
+.pass-tabs button.active > span {
+  border-color: rgb(255 106 54 / 45%);
+  color: var(--orange-bright);
+}
+
+.pass-tabs .pass-add {
+  flex: 0 0 auto;
+  color: var(--muted-strong);
+}
+
+.pass-actions {
+  border-left: 1px solid var(--line-soft);
+}
+
+.pass-actions select {
+  outline: 0;
+  cursor: pointer;
+}
+
+.pass-actions select:disabled {
+  cursor: default;
+  color: var(--muted);
+  opacity: 0.72;
+}
+
+.pass-actions select option {
+  color: var(--text);
+  background: #161419;
+}
+
+.pass-actions .pass-delete {
+  color: #e89a94;
 }
 
 .panel-heading {
@@ -2808,11 +2914,31 @@ button:focus-visible,
   }
 
   .code-pane {
-    grid-template-rows: 52px minmax(0, 1fr);
+    grid-template-rows: 88px 52px minmax(0, 1fr);
   }
 
   .code-pane--compiler-error-open {
-    grid-template-rows: 52px auto minmax(0, 1fr);
+    grid-template-rows: 88px 52px auto minmax(0, 1fr);
+  }
+
+  .pass-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 44px 44px;
+  }
+
+  .pass-actions {
+    overflow-x: auto;
+    border-top: 1px solid var(--line-soft);
+    border-left: 0;
+  }
+
+  .pass-actions button {
+    min-width: 58px;
+  }
+
+  .pass-actions button[aria-label^="Move"] {
+    min-width: 44px;
+    padding: 0;
   }
 
   .panel-heading {

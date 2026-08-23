@@ -10,6 +10,7 @@ export type SnapshotReason =
   | "before-import"
   | "before-restore"
   | "before-bake"
+  | "before-pass-delete"
   | "migration"
   | "imported";
 

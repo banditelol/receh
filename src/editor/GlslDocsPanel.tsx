@@ -58,6 +58,24 @@ function UniformGuide() {
             </dt>
             <dd>Accumulated wheel or trackpad movement.</dd>
           </div>
+          <div>
+            <dt>
+              <code>u_previous</code>
+            </dt>
+            <dd>
+              The immediately preceding fragment pass as a <code>sampler2D</code>. It is available
+              from the second pass onward.
+            </dd>
+          </div>
+          <div>
+            <dt>
+              <code>u_pass0</code>, <code>u_pass1</code>, …
+            </dt>
+            <dd>
+              Every earlier pass texture by zero-based order, so a later pass can combine more than
+              its immediate input.
+            </dd>
+          </div>
         </dl>
       </section>
 
