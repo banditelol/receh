@@ -221,6 +221,12 @@ export function App() {
     setPlaybackSeekRequest((current) => ({ time: nextTime, request: current.request + 1 }));
   };
 
+  const restartPlayback = () => {
+    resumeAfterScrubRef.current = false;
+    seekPlayback(0);
+    setPaused(false);
+  };
+
   const beginPlaybackScrub = () => {
     resumeAfterScrubRef.current = !paused;
     setPaused(true);
@@ -406,16 +412,27 @@ export function App() {
                 </span>
               </button>
               <button
-                className="preview-control"
+                className="preview-control preview-control--icon"
+                type="button"
+                onClick={restartPlayback}
+                aria-label="Restart playback from the beginning"
+                title="Restart playback"
+              >
+                <span className="preview-control-icon" aria-hidden="true">
+                  ↺
+                </span>
+              </button>
+              <button
+                className="preview-control preview-control--icon"
                 type="button"
                 onClick={() => setPaused((value) => !value)}
                 aria-label={paused ? "Resume animation" : "Pause animation"}
                 aria-pressed={!paused}
+                title={paused ? "Play" : "Pause"}
               >
                 <span className="preview-control-icon" aria-hidden="true">
                   {paused ? "▶" : "Ⅱ"}
                 </span>
-                {paused ? "Play" : "Pause"}
               </button>
               <button
                 className="preview-control"
@@ -436,14 +453,16 @@ export function App() {
                 type="button"
                 onClick={() => setPreviewToolbarCollapsed((value) => !value)}
                 aria-label={
-                  previewToolbarCollapsed ? "Show preview controls" : "Hide preview controls"
+                  previewToolbarCollapsed ? "Show playback controls" : "Hide playback controls"
                 }
                 aria-expanded={!previewToolbarCollapsed}
               >
                 <span className="preview-control-icon" aria-hidden="true">
                   {previewToolbarCollapsed ? "⌃" : "⌄"}
                 </span>
-                {previewToolbarCollapsed ? "Controls" : "Hide"}
+                <span className="preview-toolbar-toggle-label">
+                  {previewToolbarCollapsed ? "Playback" : "Hide"}
+                </span>
               </button>
             </span>
           </div>

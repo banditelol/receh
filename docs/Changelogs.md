@@ -9,6 +9,8 @@ area and may summarize one or more related commits.
 
 - Made the phone app header and the preview transport collapsible, with compact in-context reveal
   controls that keep the editor and live canvas available underneath.
+- Added compact symbol-only restart and play/pause actions to the collapsible playback transport;
+  restart seeks to `0:00` and resumes animation immediately.
 - Replaced the automatically open compiler-error drawer with a compact error count in the editor
   header. Selecting it jumps to the first failure, while highlighted error line numbers reveal and
   dismiss their messages inline.

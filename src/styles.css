@@ -398,6 +398,16 @@ button:focus-visible,
   white-space: nowrap;
 }
 
+.preview-control--icon {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+}
+
+.preview-control--icon .preview-control-icon {
+  font-size: 15px;
+}
+
 .preview-control + .preview-control {
   border-left: 1px solid rgb(255 255 255 / 10%);
 }
@@ -2616,6 +2626,16 @@ button:focus-visible,
 
   .preview-toolbar {
     bottom: 12px;
+  }
+
+  .preview-toolbar:not(.preview-toolbar--collapsed) .preview-toolbar-toggle {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+  }
+
+  .preview-toolbar:not(.preview-toolbar--collapsed) .preview-toolbar-toggle-label {
+    display: none;
   }
 
   .preview-pane--fullscreen,
