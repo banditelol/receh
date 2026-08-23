@@ -35,6 +35,7 @@ import {
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import type { ShaderDiagnostic } from "../renderer/diagnostics.ts";
 import { getDiagnosticLines } from "./diagnosticDisclosure.ts";
+import { getDiagnosticScrollMargin } from "./diagnosticNavigation.ts";
 import type { EditorPreferences } from "./editorPreferences.ts";
 import { createEditorAppearance, getEditorTheme } from "./editorThemes.ts";
 import { type GlslReferenceEntry, getGlslReference } from "./glslCatalog.ts";
@@ -492,9 +493,10 @@ export function ShaderEditor({
 
     const safeLine = Math.min(Math.max(navigationTarget.line, 1), view.state.doc.lines);
     const line = view.state.doc.line(safeLine);
+    const yMargin = getDiagnosticScrollMargin(view.defaultLineHeight, view.scrollDOM.clientHeight);
     view.dispatch({
       selection: { anchor: line.from },
-      effects: EditorView.scrollIntoView(line.from, { y: "center" }),
+      effects: EditorView.scrollIntoView(line.from, { y: "start", yMargin }),
     });
     view.focus();
   }, [navigationTarget]);

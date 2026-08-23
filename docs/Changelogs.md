@@ -16,6 +16,9 @@ area and may summarize one or more related commits.
 
 ### Compact mobile editing
 
+- Positioned diagnostic navigation targets three editor lines below the top edge, preserving useful
+  source context above each error while keeping the target visible in short keyboard-constrained
+  editor viewports.
 - Made the phone app header and the preview transport collapsible, with compact in-context reveal
   controls that keep the editor and live canvas available underneath.
 - Added compact symbol-only restart and play/pause actions to the collapsible playback transport;
