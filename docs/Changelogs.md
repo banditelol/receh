@@ -5,6 +5,14 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Aspect-correct live preview thumbnails
+
+- Made `ShaderCanvas` report measured CSS and drawing-buffer Viewport metrics and retained the
+  current Viewport aspect ratio in the app shell.
+- Changed Floating preview and Tuner preview thumbnail sizing to derive height from that ratio,
+  including width-driven desktop resizing and bounded phone layouts, so the live shader is not
+  cropped or stretched.
+
 ### Shader inspection and compile timelapse planning
 
 - Expanded [`PlanV1.md`](./PlanV1.md) with the planned Pixel probe for effective uniform values and

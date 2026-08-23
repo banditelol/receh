@@ -44,7 +44,7 @@ import {
 import { PwaPrompt } from "./pwa/PwaPrompt.tsx";
 import { usePwa } from "./pwa/usePwa.ts";
 import { useStorageHealth } from "./pwa/useStorageHealth.ts";
-import { ShaderCanvas } from "./renderer/ShaderCanvas.tsx";
+import { ShaderCanvas, type ViewportMetrics } from "./renderer/ShaderCanvas.tsx";
 import type { ShaderDiagnostic } from "./renderer/diagnostics.ts";
 import { EditorSettingsPanel } from "./settings/EditorSettingsPanel.tsx";
 import { UniformTunerPanel } from "./uniforms/UniformTunerPanel.tsx";
@@ -112,6 +112,7 @@ export function App() {
   const [playbackRange, setPlaybackRange] = useState(DEFAULT_PLAYBACK_RANGE);
   const [playbackSeekRequest, setPlaybackSeekRequest] = useState({ time: 0, request: 0 });
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
+  const [viewportAspectRatio, setViewportAspectRatio] = useState(1);
   const [exportOpen, setExportOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -133,6 +134,8 @@ export function App() {
   const [editorPreferences, setEditorPreferences] = useState(() =>
     loadEditorPreferences(window.localStorage),
   );
+  const previewThumbnailActive =
+    tunerOpen || (mobilePane === "code" && editorPreferences.phoneCodePresentation === "floating");
   const [navigationTarget, setNavigationTarget] = useState<{
     line: number;
     request: number;
@@ -319,6 +322,17 @@ export function App() {
       }
     },
     [],
+  );
+
+  const handleViewportMetricsChange = useCallback(
+    (metrics: ViewportMetrics) => {
+      if (!previewThumbnailActive) {
+        setViewportAspectRatio((current) =>
+          Math.abs(current - metrics.aspectRatio) < 0.001 ? current : metrics.aspectRatio,
+        );
+      }
+    },
+    [previewThumbnailActive],
   );
 
   const handlePlaybackTimeChange = useCallback((time: number) => {
@@ -569,6 +583,7 @@ export function App() {
           ref={previewPaneRef}
           className={`preview-pane ${previewFullscreen ? "preview-pane--fullscreen" : ""}`}
           aria-label="Shader preview panel"
+          style={{ aspectRatio: viewportAspectRatio }}
         >
           <ShaderCanvas
             documentId={document.id}
@@ -579,6 +594,7 @@ export function App() {
             seekRequest={playbackSeekRequest}
             onCompileState={handleCompileState}
             onPlaybackTimeChange={handlePlaybackTimeChange}
+            onViewportMetricsChange={handleViewportMetricsChange}
           />
           {topbarCollapsed && (
             <button

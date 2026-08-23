@@ -23,6 +23,14 @@ type CompileState = {
   passId?: string;
 };
 
+export type ViewportMetrics = {
+  cssWidth: number;
+  cssHeight: number;
+  pixelWidth: number;
+  pixelHeight: number;
+  aspectRatio: number;
+};
+
 type ShaderCanvasProps = {
   documentId: string;
   passes: readonly ShaderPipelinePass[];
@@ -32,6 +40,7 @@ type ShaderCanvasProps = {
   seekRequest: { time: number; request: number };
   onCompileState: (state: CompileState) => void;
   onPlaybackTimeChange: (time: number) => void;
+  onViewportMetricsChange?: (metrics: ViewportMetrics) => void;
 };
 
 type PassError = {
@@ -88,6 +97,7 @@ export function ShaderCanvas({
   seekRequest,
   onCompileState,
   onPlaybackTimeChange,
+  onViewportMetricsChange,
 }: ShaderCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runtimeRef = useRef<Runtime | null>(null);
@@ -96,6 +106,8 @@ export function ShaderCanvas({
   const activePassIdRef = useRef(activePassId);
   const onCompileStateRef = useRef(onCompileState);
   const onPlaybackTimeChangeRef = useRef(onPlaybackTimeChange);
+  const onViewportMetricsChangeRef = useRef(onViewportMetricsChange);
+  const viewportMetricsRef = useRef<ViewportMetrics | null>(null);
   const revisionsRef = useRef(new Map<string, CompileRevision>());
   const schedulersRef = useRef(new Map<string, CompileScheduler>());
   const compilePlanRef = useRef<CompileRevision[]>([]);
@@ -110,6 +122,33 @@ export function ShaderCanvas({
   activePassIdRef.current = activePassId;
   onCompileStateRef.current = onCompileState;
   onPlaybackTimeChangeRef.current = onPlaybackTimeChange;
+  onViewportMetricsChangeRef.current = onViewportMetricsChange;
+
+  const reportViewportMetrics = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const cssWidth = Math.max(1, canvas.clientWidth);
+    const cssHeight = Math.max(1, canvas.clientHeight);
+    const nextMetrics = {
+      cssWidth,
+      cssHeight,
+      pixelWidth: canvas.width,
+      pixelHeight: canvas.height,
+      aspectRatio: cssWidth / cssHeight,
+    };
+    const previousMetrics = viewportMetricsRef.current;
+    if (
+      previousMetrics &&
+      previousMetrics.cssWidth === nextMetrics.cssWidth &&
+      previousMetrics.cssHeight === nextMetrics.cssHeight &&
+      previousMetrics.pixelWidth === nextMetrics.pixelWidth &&
+      previousMetrics.pixelHeight === nextMetrics.pixelHeight
+    ) {
+      return;
+    }
+    viewportMetricsRef.current = nextMetrics;
+    onViewportMetricsChangeRef.current?.(nextMetrics);
+  };
 
   const nextRevisions = new Map<string, CompileRevision>();
   const compilePlan = passes.map((pass) => {
@@ -233,6 +272,14 @@ export function ShaderCanvas({
 
     canvas.addEventListener("webglcontextlost", handleContextLost);
     canvas.addEventListener("webglcontextrestored", handleContextRestored);
+    const resizeObserver = new ResizeObserver(() => {
+      const runtime = runtimeRef.current;
+      if (runtime) resizeCanvas(canvas, runtime.gl);
+      reportViewportMetrics();
+    });
+    resizeObserver.observe(canvas);
+    resizeCanvas(canvas, gl);
+    reportViewportMetrics();
 
     let animationFrame = 0;
     const render = (now: number) => {
@@ -249,6 +296,7 @@ export function ShaderCanvas({
         if (compiledPasses.length === currentPasses.length && !pausedRef.current) {
           runtime.time += timeDelta;
           resizeCanvas(canvas, runtime.gl);
+          reportViewportMetrics();
           try {
             renderPassPipelineFrame(runtime.gl, runtime.buffer, compiledPasses, runtime.targets, {
               time: runtime.time,
@@ -280,6 +328,7 @@ export function ShaderCanvas({
       cancelAnimationFrame(animationFrame);
       canvas.removeEventListener("webglcontextlost", handleContextLost);
       canvas.removeEventListener("webglcontextrestored", handleContextRestored);
+      resizeObserver.disconnect();
       if (runtimeRef.current) {
         disposePrograms(runtimeRef.current);
         disposePipelineTargets(gl, runtimeRef.current.targets);
@@ -405,6 +454,7 @@ export function ShaderCanvas({
       .filter((pass) => pass !== null);
     if (compiledPasses.length === currentPasses.length) {
       resizeCanvas(canvas, runtime.gl);
+      reportViewportMetrics();
       renderPassPipelineFrame(runtime.gl, runtime.buffer, compiledPasses, runtime.targets, {
         time: runtime.time,
         timeDelta: 0,

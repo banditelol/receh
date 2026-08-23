@@ -1090,12 +1090,14 @@ button:focus-visible,
 .app--tuner-open .preview-pane {
   position: fixed;
   z-index: 40;
+  box-sizing: content-box;
   top: 18px;
   right: 458px;
   width: clamp(220px, 24vw, 360px);
-  height: clamp(150px, 18vw, 260px);
+  height: auto;
+  max-width: calc(100vw - 476px);
   overflow: hidden;
-  resize: both;
+  resize: horizontal;
   border: 1px solid rgb(255 255 255 / 24%);
   border-radius: 13px;
   box-shadow: 0 22px 70px rgb(0 0 0 / 62%);
@@ -3036,13 +3038,14 @@ button:focus-visible,
   .app--code.app--code-presentation-floating .preview-pane {
     position: fixed;
     z-index: 4;
+    box-sizing: content-box;
     right: 14px;
     bottom: calc(76px + env(safe-area-inset-bottom));
     width: clamp(160px, 42vw, 260px);
-    height: clamp(112px, 30vw, 190px);
+    height: auto;
     display: block;
     overflow: hidden;
-    resize: both;
+    resize: horizontal;
     border: 1px solid rgb(255 255 255 / 24%);
     border-radius: 12px;
     box-shadow: 0 18px 55px rgb(0 0 0 / 58%);
@@ -3180,15 +3183,16 @@ button:focus-visible,
     top: max(12px, env(safe-area-inset-top));
     right: 12px;
     width: min(44vw, 180px);
-    height: 116px;
+    height: auto;
+    max-width: none;
     resize: none;
   }
 
   .tuner-panel {
     width: 100%;
     height: calc(var(--app-height) - max(8px, env(safe-area-inset-top)));
-    padding: 140px max(14px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
-      max(14px, env(safe-area-inset-left));
+    padding: min(38dvh, 300px) max(14px, env(safe-area-inset-right))
+      max(16px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
     border: 1px solid #37343e;
     border-width: 1px 0 0;
     border-radius: 18px 18px 0 0;

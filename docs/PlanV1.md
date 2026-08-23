@@ -143,10 +143,11 @@ or implementation checkpoints.
       viewport in fullscreen. Hide the entire toolbar, including its collapsed affordance and
       Live/error indicator, while fullscreen is active; exiting fullscreen restores its previous
       expanded or collapsed state.
-- [ ] **Preserve the viewport aspect ratio in preview thumbnails.** Floating and Uniform Tuner
+- [x] **Preserve the viewport aspect ratio in preview thumbnails.** Floating and Uniform Tuner
       thumbnails must derive their aspect ratio from the current viewport instead of using a fixed
       box. Fit the complete rendered viewport without cropping or stretching, and recompute the
-      thumbnail when the viewport, orientation, or floating-window size changes.
+      thumbnail when the viewport, orientation, or floating-window size changes. Prepared with
+      renderer-reported Viewport metrics and width-driven thumbnail resizing.
 
 ### New features
 
