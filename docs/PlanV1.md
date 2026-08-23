@@ -162,6 +162,195 @@ or implementation checkpoints.
       define how imports, duplicates, restores, and library merges preserve or fork that lineage.
       Keep this setting local-first and communicate its storage cost before enabling it.
 
+- [ ] **Inspect the current shader state.** Show the effective value of every custom uniform and
+      the current built-in runtime values, then let the user enter an `x,y` coordinate to inspect
+      the final pixel returned by the composed pass pipeline at that `gl_FragCoord`. This should be
+      an explicit, on-demand inspection action rather than a readback on every animation frame.
+
+- [ ] **Create a compile-driven project timelapse.** When the complete current project compiles
+      successfully, retain a durable compile checkpoint and enough preview metadata to show how
+      the Project changed. Export the ordered checkpoints as a configurable history segment followed
+      by a configurable final-result hold. Recovery Snapshots remain a separate concern.
+
+## Proposed shader inspection, aspect-correct thumbnails, and compile timelapse
+
+This section is a feasibility and implementation path only. It does not authorize or describe an
+implementation in this checkpoint.
+
+### Feasibility at a glance
+
+| Capability                                                  | Feasibility                              | Main risk or decision                                                                                                      |
+| ----------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Uniform values and pixel inspection                         | High for effective values and final RGBA | GPU readback can stall the render loop; coordinate and pass semantics must be explicit.                                    |
+| Aspect-correct Floating preview and Tuner preview thumbnail | High                                     | The current resizable box needs to be driven by the actual Viewport aspect ratio, not independent fixed width and height.  |
+| Retained successful-compile lineage                         | Medium-high                              | It needs a durable event/content model, storage limits, and an atomic definition of “successful project compile.”          |
+| Configurable compile timelapse export                       | Medium-high after lineage exists         | Rendering many historical documents is GPU- and memory-intensive, especially when the final video is portrait 1080 × 1920. |
+
+### Uniform values and `gl_FragCoord` output
+
+The Uniform Tuner already resolves typed custom values per Fragment pass and the renderer already
+binds built-ins such as `u_resolution`, `u_time`, `u_time_delta`, `u_frame`, `u_mouse`, `u_drag`,
+and `u_scroll`. The inspection feature should expose one immutable runtime inspection record for
+the currently displayed Project, including:
+
+- custom uniform names, types, and effective values after source defaults, annotations, and stored
+  values have been resolved;
+- built-in values for the current frame, including the actual render target resolution and playback
+  time; and
+- the active Fragment pass plus the available `u_previous`, `u_pass0`, and later pass inputs.
+
+The pixel action should be called a **Pixel probe** and should define its coordinate contract before
+the UI is built:
+
+1. Treat `x` and `y` as zero-based pixel indices in the selected output Viewport. Use the pixel
+   center (`x + 0.5`, `y + 0.5`) for the shader-space sample. If the UI uses a top-left origin,
+   convert its `y` to WebGL's bottom-left coordinate before reporting the result.
+2. Preserve the real target dimensions while probing. A 1 × 1 render changes `u_resolution` and
+   can change branches in the shader, so the preferred path is to render the full composed pipeline
+   into an offscreen target at the current resolution and call `readPixels` for the chosen pixel.
+3. Return the final RGBA value in a useful representation such as normalized channels, 8-bit
+   channels, and Hex. A later extension may probe an intermediate pass, but it must identify that
+   pass and its own render resolution clearly.
+4. Make the action explicit or throttled. WebGL `readPixels` is synchronous on common browsers and
+   can cause a visible stall if performed every frame. The live canvas does not currently preserve
+   its default framebuffer, so readback should be owned by the renderer or use a dedicated probe
+   target rather than relying on whatever remains in the visible canvas.
+
+This reports what the current GPU pipeline outputs; it does not promise algebraic evaluation of an
+arbitrary GLSL expression. Evaluating a local variable or explaining why a pixel has a value would
+require shader instrumentation and a separate debug compiler path. The existing renderer is already
+the correct execution authority for the final color, including ordered passes and tuned uniforms.
+The likely code boundary is a renderer callback that snapshots the live runtime values and performs
+an on-demand probe without changing the visible playback time or the Last-good program.
+
+Acceptance criteria:
+
+- the displayed values match the values actually bound for the current Project and Fragment pass;
+- a known shader can be checked at corner and center coordinates with a documented origin;
+- the reported output matches a reference `readPixels` result for single- and multi-pass shaders;
+- probing a failed compile continues to use the Last-good program and reports that state; and
+- probing does not add a per-frame GPU readback or alter playback, pointer, or document state.
+
+### Thumbnail aspect-ratio path
+
+The current Floating preview and Tuner preview thumbnail are live `ShaderCanvas` surfaces placed in
+resizable UI boxes. The existing layout uses independently clamped width and height values, so the
+box can have a different ratio from the rendered Viewport. That is the source of the current
+stretching/cropping risk.
+
+The recommended path is:
+
+1. Make `ShaderCanvas` report `ViewportMetrics` whenever its `ResizeObserver`-measured CSS size,
+   drawing-buffer size, or device-pixel-ratio changes. The record should contain CSS width, CSS
+   height, pixel width, pixel height, and `aspectRatio`.
+2. Treat those measured metrics as the source of truth. Do not duplicate aspect-ratio math in
+   Floating preview, the Uniform Tuner, and export panels. If a future fixed output aspect ratio is
+   introduced, make that an explicit render setting rather than silently overriding the Viewport.
+3. Give the thumbnail container an `aspect-ratio` derived from the current Viewport and let one
+   dimension follow the available space. For a freely resizable window, constrain the resize
+   result to that ratio. If the surrounding layout cannot match it, contain the rendered surface
+   with letterboxing; never use a cover/crop rule or stretch the canvas.
+4. Recompute on Preview pane resize, orientation changes, Floating-window resize, Tuner open/close,
+   and device-pixel-ratio changes. Keep the renderer's drawing-buffer resize and the CSS layout
+   update in one measured path so a thumbnail does not briefly display stale dimensions.
+5. Verify a non-square Viewport on desktop and phone layouts, including Floating and Tuner modes,
+   keyboard/rotation changes, and manual resize. Browser screenshots should prove that the complete
+   Viewport remains visible without distortion.
+
+This is a small, low-risk UI/renderer boundary change and does not require a document migration.
+The product decision still needed is whether “current aspect ratio” means the live Preview pane's
+measured ratio (recommended for V1) or a future user-selected export ratio.
+
+### Successful-compile history and timelapse path
+
+The existing Snapshots are recovery copies: they are content-hash deduplicated, created after idle
+editing or before protected actions, and subject to the rolling 50-unpinned retention policy. They
+should not be the only storage for a compile timelapse. Reusing them alone would lose repeated
+successful compiles of identical content, mix recovery semantics with visual history, and allow
+retention trimming to remove part of a timelapse.
+
+Use two related but distinct records:
+
+- a deduplicated historical Shader document body, which can reuse the canonical document JSON and
+  content hash; and
+- an ordered **Compile checkpoint** event containing Project ID, lineage ID, sequence, timestamp,
+  document hash, compile metadata, and optional low-resolution preview metadata.
+
+Record one checkpoint only after every required pass in the current compile plan succeeds, the
+compile ticket still owns the current Project and source revisions, and the resulting pipeline is
+the one being displayed. Failed, stale, cancelled, and superseded Compile requests must not create
+checkpoints. This prevents a delayed success from adding a false frame to the history.
+
+The checkpoint must represent the complete Shader document, not only the active source: ordered
+passes, Project functions, tuned values, intermediate Render resolution, active pass, and any other
+state required to reconstruct the render plan. Pure Uniform Tuner changes currently update the
+preview without recompiling. Decide explicitly whether they are excluded from compile history (the
+literal “successful compilation” interpretation) or recorded as separate user-requested render
+checkpoints when the goal is to capture tuning activity too.
+
+For storage, add a project-revision/checkpoint table or an equivalent repository boundary rather
+than overloading the existing Snapshot retention rules. A practical schema can reference a
+deduplicated document body by hash and keep the event's sequence and timestamp separately. Add
+configurable maximum checkpoint count/bytes, visible storage estimates, and pinning before enabling
+“retain from project creation.” A project created from New project or Import project starts a new
+lineage root; duplicate, restore, and library merge behavior must be specified in the same way as
+the existing Project and Snapshot identity rules.
+
+For visual fidelity, capture a small preview at checkpoint time for a responsive timeline UI, but
+keep the canonical document and render metadata as the source of truth. The final export can either
+reuse those previews for speed or re-render each checkpoint at the requested output resolution. A
+deterministic sample time is required: the recommended default is `u_time = 0` for a “what changed
+when it compiled” state timelapse. An optional live mode may advance `u_time` while each historical
+checkpoint is active, but it costs more and makes two exports of an animated shader less visually
+identical.
+
+The existing `createExportRenderer` and Story video encoder are reusable after they accept a
+timeline instead of one static Shader pipeline. The export path should:
+
+1. load the selected checkpoint documents in sequence and validate them with the current document
+   migration path;
+2. compile or cache a render plan per unique document hash, using the same ordered pass pipeline as
+   live preview and PNG export;
+3. map each output frame to a checkpoint using either evenly distributed intervals or normalized
+   compile-event timing, with a minimum display interval so a burst of edits is still visible;
+4. render a fixed sample frame or an optional animated frame, then encode through the existing
+   30-FPS WebCodecs/MediaRecorder paths; and
+5. show progress, cancellation, memory pressure, and a clear failure when a historical document no
+   longer compiles under the current renderer.
+
+Do not interpolate GLSL source between checkpoints. The safe default is a hard cut when the active
+checkpoint changes. A later compositor can crossfade rendered frames or thumbnails, but that is a
+visual transition between results, not shader interpolation.
+
+For the requested durations, model the settings as separate values:
+
+```text
+historyDurationSeconds   = 10   # ordered successful checkpoints
+finalHoldDurationSeconds = 20   # final successful result
+totalDurationSeconds     = 30   # derived total
+```
+
+This makes “a 10-second timelapse and a 20-second final result” unambiguous. If the intended output
+is 20 seconds total with the first 10 seconds showing history, set the final hold to 10 seconds or
+offer a fixed-total mode that derives the hold. The UI should preview the resulting total and explain
+how checkpoints are distributed when there are fewer or more checkpoints than output seconds.
+
+Suggested delivery order:
+
+1. Land the aspect-ratio contract and browser coverage; it is independent and low risk.
+2. Add the runtime inspection record and on-demand Pixel probe, with renderer-level tests for
+   coordinate conversion and single-/multi-pass output.
+3. Add schema migration and repository APIs for Compile checkpoints, including lineage roots,
+   deduplication, retention, backup/import policy, and recovery behavior.
+4. Add a history viewer with checkpoint thumbnails and a deterministic “render this revision” action.
+5. Extend the existing Story export with the configurable history/final-hold timeline, then test
+   10/20-second settings, cancellation, low-memory devices, and a project with many checkpoints.
+
+Overall, the thumbnail and Pixel probe features are feasible within the current browser architecture.
+Compile lineage is also feasible, but it should be designed as a new durable storage concept before
+the timelapse UI is built. The export is the largest piece because it must replay historical
+documents safely and predictably; it should follow, rather than precede, the checkpoint schema.
+
 ## Recommended next phase
 
 Finish the browser V1 before starting a React Native shell. The repository boundary, portable

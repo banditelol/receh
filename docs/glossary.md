@@ -28,6 +28,7 @@ shorter, but documentation should use the canonical term first.
 | **Fullscreen preview**            | Browser fullscreen applied to the Preview pane. This is not the same as phone Focus mode.                                                            |
 | **Floating preview**              | The small live viewport shown above the Code pane in the Floating code presentation. It may be resizable, but must retain the viewport aspect ratio. |
 | **Tuner preview thumbnail**       | The small live viewport kept visible while the Uniform Tuner is open. It should show the whole viewport without cropping or stretching.              |
+| **Pixel probe**                   | An on-demand inspection of the current composed shader pipeline at a chosen `gl_FragCoord`, returning the sampled pixel output and runtime values.   |
 
 ## Editing and source organization
 
@@ -51,19 +52,20 @@ shorter, but documentation should use the canonical term first.
 
 ## Documents, history, and storage
 
-| Term                  | Meaning                                                                                                                                                                                                          |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Project**           | The user-facing saved shader work in the local library. A project owns one versioned Shader document and its recovery history.                                                                                   |
-| **Shader document**   | The portable, versioned data model containing project metadata, project functions, ordered passes, active pass, sources, resolution scales, and tuned values.                                                    |
-| **Local library**     | The browser SQLite/OPFS store containing projects, snapshots, and Global functions.                                                                                                                              |
-| **Portable project**  | One validated `.receh.json` Shader document intended for transfer without the rest of the local library.                                                                                                         |
-| **Library backup**    | A whole-library SQLite export/import containing multiple projects, snapshots, and global source.                                                                                                                 |
-| **Snapshot**          | A durable recovery copy of a Shader document, created automatically or manually and optionally named/protected. It is not editor undo history.                                                                   |
-| **Revision**          | A logical document state in an ordered history. Compile revisions are short-lived ownership tokens; retained project revisions are a planned durable lineage and must be named explicitly when ambiguity exists. |
-| **Undo/redo history** | Short-term navigation through edits. A future **undo tree** may preserve branches created by undoing and then editing. It remains separate from snapshots.                                                       |
-| **Lineage root**      | The first retained revision for a project. New project and Import project create new roots unless a future import explicitly preserves lineage.                                                                  |
-| **New project**       | An explicit action that creates a blank/starter project and begins a new lineage root.                                                                                                                           |
-| **Import project**    | An explicit action that validates external project/source data, creates a safe local project, and begins or imports a lineage according to revision policy.                                                      |
+| Term                   | Meaning                                                                                                                                                                                                          |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Project**            | The user-facing saved shader work in the local library. A project owns one versioned Shader document and its recovery history.                                                                                   |
+| **Shader document**    | The portable, versioned data model containing project metadata, project functions, ordered passes, active pass, sources, resolution scales, and tuned values.                                                    |
+| **Local library**      | The browser SQLite/OPFS store containing projects, snapshots, and Global functions.                                                                                                                              |
+| **Portable project**   | One validated `.receh.json` Shader document intended for transfer without the rest of the local library.                                                                                                         |
+| **Library backup**     | A whole-library SQLite export/import containing multiple projects, snapshots, and global source.                                                                                                                 |
+| **Snapshot**           | A durable recovery copy of a Shader document, created automatically or manually and optionally named/protected. It is not editor undo history.                                                                   |
+| **Revision**           | A logical document state in an ordered history. Compile revisions are short-lived ownership tokens; retained project revisions are a planned durable lineage and must be named explicitly when ambiguity exists. |
+| **Undo/redo history**  | Short-term navigation through edits. A future **undo tree** may preserve branches created by undoing and then editing. It remains separate from snapshots.                                                       |
+| **Lineage root**       | The first retained revision for a project. New project and Import project create new roots unless a future import explicitly preserves lineage.                                                                  |
+| **New project**        | An explicit action that creates a blank/starter project and begins a new lineage root.                                                                                                                           |
+| **Import project**     | An explicit action that validates external project/source data, creates a safe local project, and begins or imports a lineage according to revision policy.                                                      |
+| **Compile checkpoint** | A durable successful-compile event in a Project lineage, including the complete Shader document state and optional preview metadata. It is distinct from a recovery Snapshot.                                    |
 
 ## Rendering and reliability
 

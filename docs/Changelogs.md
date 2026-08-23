@@ -5,6 +5,15 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Shader inspection and compile timelapse planning
+
+- Expanded [`PlanV1.md`](./PlanV1.md) with the planned Pixel probe for effective uniform values and
+  `gl_FragCoord` output, the aspect-ratio implementation path for Floating and Tuner thumbnails,
+  and a feasibility/design path for successful-compile lineage and configurable history/final-hold
+  timelapse export.
+- Added **Pixel probe** and **Compile checkpoint** to the product glossary so future implementation
+  work has stable names distinct from recovery Snapshots and short-lived Compile requests.
+
 ### Project storage and format compatibility
 
 - Added [`ProjectStorage.md`](./ProjectStorage.md), documenting the current Local library scope,
