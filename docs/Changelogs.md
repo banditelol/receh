@@ -5,6 +5,18 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Architecture and refactor documentation
+
+- Added [`Architecture.md`](../Architecture.md), a current implementation map covering the React
+  app shell, Shader document, source scopes, repository/SQLite worker, renderer, exports, PWA
+  services, state ownership, and native migration boundary.
+- Added [`internal.md`](../internal.md), an implementation trace for source composition, uniform
+  resolution, revision-safe compilation, diagnostic line mapping, last-good programs, ordered
+  framebuffer passes, runtime uniforms, and PNG/Story export.
+- Added [`RefactorPlan.md`](./RefactorPlan.md), a phased React best-practice and platform plan that
+  extracts the shader core, narrows App state ownership, injects platform adapters, and sequences
+  Expo Android/iOS, native renderer, and separately validated React Native macOS work.
+
 ### V1 debt and shared terminology
 
 - Added a V1 debt/follow-up section covering topbar control placement, fullscreen playback
