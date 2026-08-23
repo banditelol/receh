@@ -5,6 +5,19 @@ area and may summarize one or more related commits.
 
 ## 2026-08-23
 
+### Revision-safe shader compilation
+
+- Scoped every compile request to its project, pass, monotonically increasing source revision, and
+  explicit request generation so delayed successes or diagnostics cannot replace newer work.
+- Cleared diagnostics as soon as the compile owner changes, retained last-good rendering only for
+  edits to the same project/pass, and disposed and cleared programs when switching owners so a
+  different project's frame is never presented as recovery.
+- Added focused scheduling coverage for rapid edits, repeated explicit compiles, project switches,
+  pass switches, unmount invalidation, and delayed stale diagnostics.
+- Verified compile failure with a continuing same-pass last-good frame, project switching to a
+  clean compile, and owner-scoped failure with a cleared preview at 1440 × 900 and no application
+  console errors.
+
 ### Complete shared-document links
 
 - Upgraded generated links to a compact V2 envelope that round-trips Unicode project titles,

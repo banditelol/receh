@@ -79,6 +79,7 @@ export function App() {
   const [status, setStatus] = useState<CompileStatus>("compiling");
   const [message, setMessage] = useState("Compiling");
   const [diagnostics, setDiagnostics] = useState<ShaderDiagnostic[]>([]);
+  const [hasLastGoodProgram, setHasLastGoodProgram] = useState(false);
   const [mobilePane, setMobilePane] = useState<MobilePane>("preview");
   const [topbarCollapsed, setTopbarCollapsed] = useState(false);
   const [previewToolbarCollapsed, setPreviewToolbarCollapsed] = useState(false);
@@ -168,7 +169,7 @@ export function App() {
       setCompileRequest((request) => request + 1);
     }, 450);
     return () => window.clearTimeout(timer);
-  }, [source]);
+  }, [activePass.id, document.id, source]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -190,10 +191,16 @@ export function App() {
   }, []);
 
   const handleCompileState = useCallback(
-    (state: { status: CompileStatus; diagnostics: ShaderDiagnostic[]; message: string }) => {
+    (state: {
+      status: CompileStatus;
+      diagnostics: ShaderDiagnostic[];
+      message: string;
+      hasLastGoodProgram: boolean;
+    }) => {
       setStatus(state.status);
       setDiagnostics(state.diagnostics);
       setMessage(state.message);
+      setHasLastGoodProgram(state.hasLastGoodProgram);
     },
     [],
   );
@@ -208,13 +215,13 @@ export function App() {
   const statusText = useMemo(() => {
     if (status === "error") {
       const count = diagnostics.length;
-      return count > 0
-        ? `${count} ${count === 1 ? "error" : "errors"} · last good frame`
-        : "Compile error";
+      if (count === 0) return "Compile error";
+      const errorCount = `${count} ${count === 1 ? "error" : "errors"}`;
+      return hasLastGoodProgram ? `${errorCount} · last good frame` : errorCount;
     }
     if (status === "unsupported") return "WebGL2 unavailable";
     return status === "ready" ? "Live" : "Compiling";
-  }, [diagnostics.length, status]);
+  }, [diagnostics.length, hasLastGoodProgram, status]);
 
   const resetShader = async () => {
     if (source !== DEFAULT_SHADER && window.confirm("Reset the shader to the starter scene?")) {
@@ -386,6 +393,8 @@ export function App() {
           aria-label="Shader preview panel"
         >
           <ShaderCanvas
+            documentId={document.id}
+            passId={activePass.id}
             source={source}
             compileRequest={compileRequest}
             paused={paused}

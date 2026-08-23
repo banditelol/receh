@@ -2,14 +2,22 @@ import { useEffect, useRef, useState } from "react";
 import { parseShaderDiagnostics, type ShaderDiagnostic } from "./diagnostics.ts";
 import { createFullscreenTriangle, createProgram, renderShaderFrame } from "./webgl.ts";
 import type { RuntimeUniform } from "../uniforms/uniformTypes.ts";
+import {
+  advanceCompileRevision,
+  CompileScheduler,
+  type CompileRevision,
+} from "./compileScheduler.ts";
 
 type CompileState = {
   status: "compiling" | "ready" | "error" | "unsupported";
   diagnostics: ShaderDiagnostic[];
   message: string;
+  hasLastGoodProgram: boolean;
 };
 
 type ShaderCanvasProps = {
+  documentId: string;
+  passId: string;
   source: string;
   compileRequest: number;
   paused: boolean;
@@ -22,6 +30,10 @@ type ShaderCanvasProps = {
 type Runtime = {
   gl: WebGL2RenderingContext;
   program: WebGLProgram | null;
+  programDocumentId: string | null;
+  programPassId: string | null;
+  activeDocumentId: string | null;
+  activePassId: string | null;
   buffer: WebGLBuffer;
   time: number;
   lastFrameAt: number;
@@ -47,6 +59,8 @@ function resizeCanvas(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) {
 }
 
 export function ShaderCanvas({
+  documentId,
+  passId,
   source,
   compileRequest,
   paused,
@@ -57,14 +71,21 @@ export function ShaderCanvas({
 }: ShaderCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runtimeRef = useRef<Runtime | null>(null);
-  const sourceRef = useRef(source);
+  const compileRevisionRef = useRef<CompileRevision | undefined>(undefined);
+  const compileSchedulerRef = useRef(new CompileScheduler());
   const pausedRef = useRef(paused);
   const uniformsRef = useRef(uniforms);
   const onCompileStateRef = useRef(onCompileState);
   const onPlaybackTimeChangeRef = useRef(onPlaybackTimeChange);
   const [contextLost, setContextLost] = useState(false);
 
-  sourceRef.current = source;
+  const compileRevision = advanceCompileRevision(compileRevisionRef.current, {
+    documentId,
+    passId,
+    source,
+  });
+  compileRevisionRef.current = compileRevision;
+  compileSchedulerRef.current.updateTarget(compileRevision);
   pausedRef.current = paused;
   uniformsRef.current = uniforms;
   onCompileStateRef.current = onCompileState;
@@ -85,6 +106,7 @@ export function ShaderCanvas({
         status: "unsupported",
         diagnostics: [],
         message: "WebGL2 is unavailable in this browser.",
+        hasLastGoodProgram: false,
       });
       return;
     }
@@ -94,6 +116,10 @@ export function ShaderCanvas({
     runtimeRef.current = {
       gl,
       program: null,
+      programDocumentId: null,
+      programPassId: null,
+      activeDocumentId: null,
+      activePassId: null,
       buffer,
       time: 0,
       lastFrameAt: performance.now(),
@@ -147,6 +173,7 @@ export function ShaderCanvas({
     animationFrame = requestAnimationFrame(render);
 
     return () => {
+      compileSchedulerRef.current.invalidate();
       cancelAnimationFrame(animationFrame);
       canvas.removeEventListener("webglcontextlost", handleContextLost);
       canvas.removeEventListener("webglcontextrestored", handleContextRestored);
@@ -158,29 +185,93 @@ export function ShaderCanvas({
 
   useEffect(() => {
     const runtime = runtimeRef.current;
+    if (runtime) {
+      const ownerChanged =
+        runtime.activeDocumentId !== compileRevision.documentId ||
+        runtime.activePassId !== compileRevision.passId;
+      if (ownerChanged) {
+        if (runtime.program) runtime.gl.deleteProgram(runtime.program);
+        runtime.program = null;
+        runtime.programDocumentId = null;
+        runtime.programPassId = null;
+        runtime.activeDocumentId = compileRevision.documentId;
+        runtime.activePassId = compileRevision.passId;
+        runtime.time = 0;
+        runtime.frame = 0;
+        runtime.gl.clearColor(0, 0, 0, 1);
+        runtime.gl.clear(runtime.gl.COLOR_BUFFER_BIT);
+        onPlaybackTimeChangeRef.current(0);
+      }
+      onCompileStateRef.current({
+        status: "compiling",
+        diagnostics: [],
+        message: "Compiling",
+        hasLastGoodProgram: runtime.program !== null,
+      });
+    }
+  }, [compileRevision]);
+
+  useEffect(() => {
+    const runtime = runtimeRef.current;
     if (!runtime) return;
 
-    onCompileStateRef.current({ status: "compiling", diagnostics: [], message: "Compiling" });
-    const result = createProgram(runtime.gl, sourceRef.current);
+    const target = compileRevisionRef.current;
+    if (!target) return;
+    const ticket = compileSchedulerRef.current.begin(target, compileRequest);
+    let active = true;
+    onCompileStateRef.current({
+      status: "compiling",
+      diagnostics: [],
+      message: "Compiling",
+      hasLastGoodProgram: runtime.program !== null,
+    });
+    void Promise.resolve()
+      .then(() => createProgram(runtime.gl, target.source))
+      .then((result) => {
+        if (!active || !compileSchedulerRef.current.isCurrent(ticket)) {
+          if (result.program) runtime.gl.deleteProgram(result.program);
+          return;
+        }
+        if (!result.program) {
+          onCompileStateRef.current({
+            status: "error",
+            diagnostics: parseShaderDiagnostics(result.log),
+            message: result.log,
+            hasLastGoodProgram: runtime.program !== null,
+          });
+          return;
+        }
 
-    if (!result.program) {
-      onCompileStateRef.current({
-        status: "error",
-        diagnostics: parseShaderDiagnostics(result.log),
-        message: result.log,
+        const previous = runtime.program;
+        runtime.program = result.program;
+        runtime.programDocumentId = target.documentId;
+        runtime.programPassId = target.passId;
+        runtime.time = 0;
+        runtime.lastFrameAt = performance.now();
+        runtime.lastTimeReportAt = 0;
+        runtime.frame = 0;
+        if (previous) runtime.gl.deleteProgram(previous);
+        onPlaybackTimeChangeRef.current(0);
+        onCompileStateRef.current({
+          status: "ready",
+          diagnostics: [],
+          message: "Live",
+          hasLastGoodProgram: true,
+        });
+      })
+      .catch((reason: unknown) => {
+        if (!active || !compileSchedulerRef.current.isCurrent(ticket)) return;
+        const message = reason instanceof Error ? reason.message : "Shader compilation failed";
+        onCompileStateRef.current({
+          status: "error",
+          diagnostics: [],
+          message,
+          hasLastGoodProgram: runtime.program !== null,
+        });
       });
-      return;
-    }
-
-    const previous = runtime.program;
-    runtime.program = result.program;
-    runtime.time = 0;
-    runtime.lastFrameAt = performance.now();
-    runtime.lastTimeReportAt = 0;
-    runtime.frame = 0;
-    if (previous) runtime.gl.deleteProgram(previous);
-    onPlaybackTimeChangeRef.current(0);
-    onCompileStateRef.current({ status: "ready", diagnostics: [], message: "Live" });
+    return () => {
+      active = false;
+    };
   }, [compileRequest]);
 
   useEffect(() => {

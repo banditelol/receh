@@ -83,7 +83,7 @@ unless real-device validation uncovers a blocking need.
 ### Current quality baseline
 
 - Formatting, linting, and strict TypeScript checks pass.
-- Sixty-eight unit tests cover diagnostics, document migration/update, import validation, storage,
+- Seventy-two unit tests cover diagnostics, document migration/update, import validation, storage,
   snapshot hashing, downloads, Story timeline calculations, editor preference repair, GLSL catalog
   search, source-symbol/reference context, uniform parsing/baking, synchronized color conversion,
   storage-pressure classification, and service-worker generation.
@@ -92,22 +92,22 @@ unless real-device validation uncovers a blocking need.
 
 ## V1 scope and status
 
-| Product capability                 | Status            | V1 requirement                                      |
-| ---------------------------------- | ----------------- | --------------------------------------------------- |
-| Single-pass create/edit/run loop   | Prepared          | Harden on real phones                               |
-| Mobile and desktop workspaces      | Prepared          | Add remaining device coverage                       |
-| Browser auto-save                  | Prepared          | Harden storage pressure and failure recovery        |
-| Portable local backup              | Prepared          | Harden real-device import/share flows               |
-| Source diagnostics and completions | Prepared baseline | Add revision-safe async compile scheduling          |
-| PNG and Story MP4 export           | Prepared          | Test real-device encoding, memory, and cancellation |
-| Shareable shader URL               | Prepared          | Harden physical-device deep links                   |
-| Named snapshots/history            | Prepared          | Harden backup/restore on real phones                |
-| Parsed uniform tuner               | Prepared          | Harden on real phones                               |
-| Ordered fragment passes            | Not started       | Required for V1                                     |
-| Installable/offline PWA            | Prepared          | Harden installation on real devices                 |
-| Accounts and cloud publishing      | Deferred          | Post-V1                                             |
-| WebGPU and alternate languages     | Deferred          | Post-V1                                             |
-| Community, tutorials, marketplace  | Deferred          | Post-V1                                             |
+| Product capability                 | Status      | V1 requirement                                      |
+| ---------------------------------- | ----------- | --------------------------------------------------- |
+| Single-pass create/edit/run loop   | Prepared    | Harden on real phones                               |
+| Mobile and desktop workspaces      | Prepared    | Add remaining device coverage                       |
+| Browser auto-save                  | Prepared    | Harden storage pressure and failure recovery        |
+| Portable local backup              | Prepared    | Harden real-device import/share flows               |
+| Source diagnostics and completions | Prepared    | Harden rapid edits on real phones                   |
+| PNG and Story MP4 export           | Prepared    | Test real-device encoding, memory, and cancellation |
+| Shareable shader URL               | Prepared    | Harden physical-device deep links                   |
+| Named snapshots/history            | Prepared    | Harden backup/restore on real phones                |
+| Parsed uniform tuner               | Prepared    | Harden on real phones                               |
+| Ordered fragment passes            | Not started | Required for V1                                     |
+| Installable/offline PWA            | Prepared    | Harden installation on real devices                 |
+| Accounts and cloud publishing      | Deferred    | Post-V1                                             |
+| WebGPU and alternate languages     | Deferred    | Post-V1                                             |
+| Community, tutorials, marketplace  | Deferred    | Post-V1                                             |
 
 ## Product TODO
 
@@ -145,7 +145,8 @@ Use this implementation order:
 3. **Revision-safe compile scheduling.** Ensure delayed compile results can never replace a newer
    source revision, and add focused tests for rapid edits, project switches, pass switches, and
    stale diagnostics. Complete this reliability boundary before one document can run several
-   passes concurrently.
+   passes concurrently. Prepared with document/pass/revision tickets and owner-scoped last-good
+   programs.
 4. **Ordered fragment passes.** Add framebuffer-backed pass execution and pass management only
    after sharing, restoration, and compilation have stable version/revision semantics. Keep common
    source and texture/media inputs out of the first multi-pass slice unless they are required by a
@@ -154,9 +155,9 @@ Use this implementation order:
    then complete the installation, accessibility, offline, thermal, memory, and media-export matrix
    after multi-pass is stable.
 
-The immediate checkpoint is revision-safe compile scheduling. Physical iOS Safari and Android
-Chrome deep-link behavior remains part of the release gate. Large documents continue to use project
-or SQLite export.
+The immediate checkpoint is ordered fragment passes. Physical iOS Safari and Android Chrome
+deep-link behavior remains part of the release gate. Large documents continue to use project or
+SQLite export.
 
 ## What to do next
 
@@ -225,6 +226,8 @@ Status: prepared in the browser; real-device input and accessibility coverage re
   `#RRGGBBAA`) for explicit color controls. Common color-like `vec3`/`vec4` names are inferred.
 
 ### 5. Revision-safe compile scheduling
+
+Status: prepared in the browser; rapid-edit and project-switch hardening remains in section 7.
 
 - Assign every compile request to a document, pass, and monotonically increasing source revision.
 - Ignore delayed renderer results when the active project, pass, or source revision has moved on.
